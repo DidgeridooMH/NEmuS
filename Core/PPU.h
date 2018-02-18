@@ -22,7 +22,7 @@ namespace nemus::core {
         Uint32 *m_pixelFIFO;
 
         unsigned char* m_vram;
-        unsigned char m_oam[0x0F];
+        unsigned char m_oam[0x10];
 
         int m_cycle = 0;
 
@@ -58,11 +58,15 @@ namespace nemus::core {
 
         unsigned char m_oamData;
 
-        unsigned char m_ppuScroll;
+        unsigned char m_ppuScrollX;
+
+        unsigned char m_ppuScrollY;
 
         unsigned int m_ppuAddr;
 
-        unsigned char m_oamDMA;
+        unsigned int m_ppuTmpAddr;
+
+        unsigned int m_oamDMA;
 
         bool m_addressLatch = false;
 
@@ -72,11 +76,15 @@ namespace nemus::core {
 
         void drawTile(int x, int y, int id);
 
+        void renderPixel();
+
         void renderNametable();
 
         void renderSprites();
 
         void renderBackground();
+
+        void dumpOAM(std::string filename);
 
     public:
         PPU();
@@ -115,9 +123,7 @@ namespace nemus::core {
 
         unsigned int readOAMData() { return m_oamData; }
 
-        void writePPUScroll(unsigned int data) { m_ppuScroll = data; }
-
-        unsigned int readPPUScroll() { return m_ppuScroll; }
+        void writePPUScroll(unsigned int data);
 
         void writePPUAddr(unsigned int data);
 

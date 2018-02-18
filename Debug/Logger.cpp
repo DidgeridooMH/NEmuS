@@ -10,10 +10,18 @@ nemus::debug::Logger::~Logger() {
 }
 
 void nemus::debug::Logger::write(std::string message) {
+    if(!m_enable) {
+        return;
+    }
+
     m_fileOut << message << std::endl;
 }
 
 void nemus::debug::Logger::writeError(std::string message, unsigned int address) {
+    if(!m_enable) {
+        return;
+    }
+
     m_fileOut << "ERROR at $" << std::hex << address << std::dec << ": " << message << std::endl;
 }
 
@@ -21,6 +29,11 @@ void nemus::debug::Logger::writeInstruction(comp::Registers registers,
                                             std::string instruction,
                                             unsigned int result,
                                             comp::AddressMode mode) {
+
+    if(!m_enable) {
+        return;
+    }
+
     m_fileOut << std::hex
               << "A: " << registers.a
               << " X: " << registers.x

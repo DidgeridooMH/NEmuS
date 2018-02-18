@@ -7,11 +7,9 @@ nemus::core::PPU::PPU() {
     m_cycle = 0;
     m_scanline = 0;
 
-    m_ppuScroll = 5;
-
     m_oamDMA = 2;
 
-    m_vram = new unsigned char[0x4000];
+    m_vram = new unsigned char[0x8000];
 
     m_pixelFIFO = new Uint32[SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(Uint32)];
 }
@@ -21,98 +19,54 @@ nemus::core::PPU::~PPU() {
 }
 
 void nemus::core::PPU::initVRam() {
-    for(int i = 0; i < 0x4000; i++) {
+    for(int i = 0; i < 0x2000; i++) {
         m_vram[i] = m_memory->readRom(0x8000 + i + 0x10);
     }
 }
 
-void nemus::core::PPU::renderNametable() {
-    for(int tileY = 0; tileY < 0x10; tileY++) {
-        for (int tileX = 0; tileX < 0x10; tileX++) {
-            for (int rows = 0; rows < 8; rows++) {
-                unsigned char pixels[8];
+// TODO: Compensate for scrolling
+void nemus::core::PPU::renderPixel() {
+    int x = m_cycle / 8;
+    int y = m_scanline / 8;
+    int sliver = m_scanline % 8;
+    int pixel = m_cycle % 8;
+    int tileNum = x + (y * 32);
 
-                createPatternRow(rows + (tileX * 0x10) + (tileY * 0x10 * 0x10) + PATTERN_TABLE_0, pixels);
+    int nameTableAddress = 0x2000 + (0x400 * m_ppuCtrl.name_select);
 
-                for (int i = 0; i < 8; i++) {
-                    switch (pixels[i]) {
-                        case 0:
-                            // TODO: Make Transparent
-                            m_pixelFIFO[i + (rows * 256) + (256 * 8 * tileY) + (tileX * 8)] = PPU_COLOR_BLACK;
-                            break;
-                        case 1:
-                            m_pixelFIFO[i + (rows * 256) + (256 * 8 * tileY) + (tileX * 8)] = PPU_COLOR_BLUE;
-                            break;
-                        case 2:
-                            m_pixelFIFO[i + (rows * 256) + (256 * 8 * tileY) + (tileX * 8)] = PPU_COLOR_RED;
-                            break;
-                        case 3:
-                            m_pixelFIFO[i + (rows * 256) + (256 * 8 * tileY) + (tileX * 8)] = PPU_COLOR_WHITE;
-                            break;
-                    }
-                }
-            }
-        }
+    int tileID = m_vram[nameTableAddress + tileNum];
+
+    int plane0 = 0, plane1 = 0;
+
+    if(m_ppuCtrl.bg_tile_select) {
+        plane0 = m_vram[PATTERN_TABLE_1 + (tileID * 0x10) + sliver];
+        plane1 = m_vram[PATTERN_TABLE_1 + (tileID * 0x10) + sliver + 0x08];
+    } else  {
+        plane0 = m_vram[PATTERN_TABLE_0 + (tileID * 0x10) + sliver];
+        plane1 = m_vram[PATTERN_TABLE_0 + (tileID * 0x10) + sliver + 0x08];
     }
-}
 
-void nemus::core::PPU::createPatternRow(int address, unsigned char* pixels) {
-    unsigned char plane_0 = m_vram[address];
-    unsigned char plane_1 = m_vram[address + 8];
+    int color = (plane0 >> (7 - pixel)) & 0x1;
 
-    for(int i = 7; i >= 0; i--) {
-        unsigned char bit_0 = (plane_0 >> i) & 1;
-        unsigned char bit_1;
-
-        if(i > 0) {
-            bit_1 = (plane_1 >> (i - 1)) & 2;
-        } else {
-            bit_1 = (plane_1 << 1) & 2;
-        }
-
-        pixels[7 - i] = bit_0 | bit_1;
+    if(pixel < 7) {
+        color |= (plane1 >> (6 - pixel)) & 0x2;
+    } else {
+        color |= (plane1 << 1) & 0x2;
     }
-}
 
-void nemus::core::PPU::drawTile(int x, int y, int id) {
-    unsigned char pixels[8];
-
-    for(int rows = 0; rows < 8; rows++) {
-        createPatternRow(0x10 * id, pixels);
-
-        for (int i = 0; i < 8; i++) {
-            switch (pixels[i]) {
-                case 0:
-                    m_pixelFIFO[i + (rows * 256) + (x * 8) + (y * 256 * 8)] = PPU_COLOR_BLACK;
-                    break;
-                case 1:
-                    m_pixelFIFO[i + (rows * 256) + (x * 8) + (y * 256 * 8)] = PPU_COLOR_BLUE;
-                    break;
-                case 2:
-                    m_pixelFIFO[i + (rows * 256) + (x * 8) + (y * 256 * 8)] = PPU_COLOR_RED;
-                    break;
-                case 3:
-                    m_pixelFIFO[i + (rows * 256) + (x * 8) + (y * 256 * 8)] = PPU_COLOR_WHITE;
-                    break;
-            }
-        }
-    }
-}
-
-void nemus::core::PPU::renderSprites() {
-
-}
-
-void nemus::core::PPU::renderBackground() {
-    int tileID;
-
-
-    for(int y = 0; y < 30; y++) {
-        for (int x = 0; x < 32; x++) {
-            tileID = m_vram[0x2000 + x + (y * 32)];
-
-            drawTile(x, y, tileID);
-        }
+    switch(color) {
+        case 0:
+            m_pixelFIFO[m_cycle + (m_scanline * 256)] = PPU_COLOR_BLACK;
+            break;
+        case 1:
+            m_pixelFIFO[m_cycle + (m_scanline * 256)] = PPU_COLOR_RED;
+            break;
+        case 2:
+            m_pixelFIFO[m_cycle + (m_scanline * 256)] = PPU_COLOR_BLUE;
+            break;
+        case 3:
+            m_pixelFIFO[m_cycle + (m_scanline * 256)] = PPU_COLOR_WHITE;
+            break;
     }
 }
 
@@ -123,6 +77,8 @@ void nemus::core::PPU::tick() {
         if(m_cycle == 0) {
             m_ppuStatus.vblank = false;
         }
+
+        renderPixel();
 
     } else if(m_scanline == 240) {
         // IDLE
@@ -140,7 +96,7 @@ void nemus::core::PPU::tick() {
         return;
     }
 
-    if(++m_cycle > 340) {
+    if(++m_cycle > 256) {
         m_scanline++;
         m_cycle = 0;
     }
@@ -190,8 +146,6 @@ unsigned int nemus::core::PPU::readPPU(unsigned int address) {
             return readOAMAddr();
         case 0x2004:
             return readOAMData();
-        case 0x2005:
-            return readPPUScroll();
         case 0x2007:
             return readPPUData();
         case 0x4014:
@@ -266,9 +220,9 @@ unsigned int nemus::core::PPU::readPPUStatus() {
 
 void nemus::core::PPU::writePPUAddr(unsigned int data) {
     if(!m_addressLatch) {
-        m_ppuAddr = ((data << 8) & 0xFF00) | (m_ppuAddr & 0xFF);
+        m_ppuTmpAddr = (data << 8) & 0x3F00;
     } else {
-        m_ppuAddr = (m_ppuAddr & 0xFF00) | (data & 0xFF);
+        m_ppuAddr = (m_ppuTmpAddr & 0x3F00) | (data & 0xFF);
     }
 
     m_addressLatch = !m_addressLatch;
@@ -279,21 +233,49 @@ void nemus::core::PPU::writePPUData(unsigned int data) {
 
     if(!m_ppuCtrl.inc_mode) {
         m_ppuAddr += 1;
+        m_ppuAddr %= 0x8000;
     } else {
         m_ppuAddr += 32;
+        m_ppuAddr %= 0x8000;
     }
 }
 
 unsigned int nemus::core::PPU::readPPUData() {
-    return readVRAM(m_ppuAddr);
+    unsigned int value = m_vram[m_ppuAddr];
+
+    if(!m_ppuCtrl.inc_mode) {
+        m_ppuAddr += 1;
+        m_ppuAddr %= 0x8000;
+    } else {
+        m_ppuAddr += 32;
+        m_ppuAddr %= 0x8000;
+    }
+
+    return value;
+}
+
+void nemus::core::PPU::writePPUScroll(unsigned int data) {
+    if(!m_addressLatch) {
+        m_ppuScrollX = data;
+    } else {
+        m_ppuScrollY = data;
+    }
+
+    m_addressLatch = !m_addressLatch;
 }
 
 void nemus::core::PPU::writeVRAM(unsigned char data, int address) {
     m_vram[address] = data;
-}
 
-unsigned char nemus::core::PPU::readVRAM(int address) {
-    return m_vram[address];
+    if(m_memory->getMirroring()) {
+        if(address >= 0x2000 && address < 0x2800) {
+            m_vram[address + 0x800] = data;
+        } else if(address >= 0x2800 && address < 0x3000) {
+            m_vram[address - 0x800] = data;
+        }
+    } else {
+        // TODO: Horizontal mirroring
+    }
 }
 
 void nemus::core::PPU::dumpRam(std::string filename) {
@@ -307,10 +289,23 @@ void nemus::core::PPU::dumpRam(std::string filename) {
     output.close();
 }
 
+void nemus::core::PPU::dumpOAM(std::string filename) {
+    std::fstream output;
+    output.open(filename, std::ios::out | std::ios::binary);
+
+    for(int i = 0; i < 0x0F; i++) {
+        output << m_oam[i];
+    }
+
+    output.close();
+}
+
 void nemus::core::PPU::writeOAMDMA(unsigned int data) {
     unsigned int cpuAddress = data << 8;
 
     for(int i = 0; i < 0x10; i++) {
         m_oam[m_oamAddr + i] = (unsigned char)(m_memory->readByte(cpuAddress + i));
     }
+
+    dumpOAM("oam.dat");
 }

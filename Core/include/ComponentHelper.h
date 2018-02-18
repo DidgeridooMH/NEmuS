@@ -2,20 +2,10 @@
 #define NEMUS_COMPONENTHELPER_H
 
 namespace nemus::comp {
-
-    enum State {
-        STOP = 0,
-        RUNNING = 1,
-        PAUSED = 2
-    };
-
     struct Registers {
-        // General purpose registers
         unsigned int x;
         unsigned int y;
         unsigned int a;
-
-        // Special purpose registers
         unsigned int pc;
         unsigned int sp;
         unsigned int p;
@@ -37,12 +27,12 @@ namespace nemus::comp {
     };
 
     enum Flag {
-        FLAG_NEGATIVE = 0x1,
+        FLAG_CARRY = 0x1,
         FLAG_ZERO = 0x2,
-        FLAG_CARRY = 0x4,
         FLAG_INTERRUPT = 0x8,
         FLAG_DECIMAL = 0x10,
-        FLAG_OVERFLOW = 0x20
+        FLAG_OVERFLOW = 0x40,
+        FLAG_NEGATIVE = 0x80
     };
 
     enum Interrupt {

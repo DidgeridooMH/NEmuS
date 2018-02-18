@@ -20,7 +20,8 @@ namespace nemus::core {
 
             char *m_rom;
 
-            void initRam();
+            // TODO: Move to mapper
+            char m_mirroring;
 
         public:
             Memory(debug::Logger *logger, core::PPU *ppu);
@@ -31,11 +32,16 @@ namespace nemus::core {
 
             char readRom(int address) { return m_rom[address]; }
 
+            // TODO: Move to mapper
+            char getMirroring() { return m_mirroring; }
+
             unsigned int readByte(unsigned int address);
 
             unsigned int readByte(comp::Registers registers, comp::AddressMode addr);
 
             unsigned int readWord(unsigned int address);
+
+            unsigned int readWordBug(unsigned int address);
 
             bool writeByte(unsigned char data, unsigned int address);
 

@@ -9,8 +9,6 @@
 namespace nemus {
     class NES {
     private:
-        comp::State m_state = comp::STOP;
-
         core::CPU* m_cpu = nullptr;
 
         core::Memory* m_memory = nullptr;
@@ -26,14 +24,10 @@ namespace nemus {
 
         ~NES();
 
-        comp::State getState() { return m_state; }
-
-        void setState(comp::State state) {m_state = state;}
-
         void run();
 
     };
 }
 
 
-#endif //NEMUS_NES_H
+#endif

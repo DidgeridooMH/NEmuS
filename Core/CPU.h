@@ -36,8 +36,6 @@ namespace nemus::core {
 
         debug::Logger* m_logger;
 
-        int m_latency;
-
         void generateOP();
 
         void resetRegisters();

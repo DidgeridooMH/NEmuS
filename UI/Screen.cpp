@@ -8,7 +8,7 @@ nemus::ui::Screen::Screen(nemus::core::PPU *ppu) {
         std::cout << "SDL_Init Error: " << SDL_GetError() << std::endl;
     }
 
-    m_window = SDL_CreateWindow("Hello World!", 100, 100, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
+    m_window = SDL_CreateWindow("NEmuS Alpha Build", 100, 100, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
     if(m_window == nullptr) {
         std::cout << "SDL_CreateWindow Error: " << SDL_GetError() << std::endl;
         SDL_Quit();

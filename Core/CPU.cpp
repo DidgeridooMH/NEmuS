@@ -4,6 +4,8 @@
 #include "CPU.h"
 #include "Memory.h"
 
+int counter = 0;
+
 nemus::core::CPU::CPU(Memory* memory, debug::Logger* logger) {
     generateOP();
 
@@ -30,16 +32,20 @@ nemus::core::CPU::CPU(Memory* memory, debug::Logger* logger) {
 }
 
 int nemus::core::CPU::tick() {
-    unsigned int op = m_memory->readByte(m_reg.pc);
-
     // NMI
     if(m_interrupt != comp::INT_NONE) {
         interrupt();
-        m_latency = 0;
         return 0;
     }
 
+    unsigned int op = m_memory->readByte(m_reg.pc);
+
     switch(op) {
+        // NOP
+        case 0xEA:
+            m_logger->writeInstruction(m_reg, "NOP", 0, comp::ADDR_MODE_IMPLIED);
+            break;
+
         // SEI
         case 0x78:
             setFlags(comp::FLAG_INTERRUPT);
@@ -50,6 +56,12 @@ int nemus::core::CPU::tick() {
         case 0x38:
             setFlags(comp::FLAG_CARRY);
             m_logger->writeInstruction(m_reg, "SEC", 0, comp::ADDR_MODE_IMPLIED);
+            break;
+
+        // CLV
+        case 0xB8:
+            unsetFlags(comp::FLAG_OVERFLOW);
+            m_logger->writeInstruction(m_reg, "CLV", 0, comp::ADDR_MODE_IMPLIED);
             break;
 
         // CLC
@@ -104,13 +116,13 @@ int nemus::core::CPU::tick() {
             load(m_reg.x, comp::ADDR_MODE_ZERO_PAGE);
             break;
         case 0xB6:
-            load(m_reg.x, comp::ADDR_MODE_ZERO_PAGE_X);
+            load(m_reg.x, comp::ADDR_MODE_ZERO_PAGE_Y);
             break;
         case 0xAE:
             load(m_reg.x, comp::ADDR_MODE_ABSOLUTE);
             break;
         case 0xBE:
-            load(m_reg.x, comp::ADDR_MODE_ABSOLUTE_X);
+            load(m_reg.x, comp::ADDR_MODE_ABSOLUTE_Y);
             break;
 
         // LDY
@@ -210,7 +222,7 @@ int nemus::core::CPU::tick() {
             branch(!m_flags.Z);
             break;
         case 0xF0:
-            branch(!m_flags.Z);
+            branch(m_flags.Z);
             break;
 
         // CMP
@@ -522,13 +534,13 @@ int nemus::core::CPU::tick() {
         // PHP
         case 0x08:
             m_memory->push(generateFlags(), m_reg.sp);
-            m_logger->writeInstruction(m_reg, "pha", generateFlags(), comp::ADDR_MODE_IMPLIED);
+            m_logger->writeInstruction(m_reg, "php", generateFlags(), comp::ADDR_MODE_IMPLIED);
             break;
 
         // PLP
         case 0x28:
             setFlags(m_memory->pop(m_reg.sp));
-            m_logger->writeInstruction(m_reg, "pla", generateFlags(), comp::ADDR_MODE_IMPLIED);
+            m_logger->writeInstruction(m_reg, "plp", generateFlags(), comp::ADDR_MODE_IMPLIED);
             break;
 
         // ADC
@@ -720,21 +732,23 @@ void nemus::core::CPU::resetRegisters() {
 void nemus::core::CPU::adc(comp::AddressMode addr) {
     unsigned int operand = m_memory->readByte(m_reg, addr);
 
-    unsigned int result = static_cast<unsigned char>(m_reg.a) + static_cast<unsigned char>(operand) + (m_flags.C);
+    unsigned int result = m_reg.a + operand + (int)(m_flags.C);
 
-    m_reg.a = result % 0xFF;
+    m_flags.V = ((m_reg.a ^ operand) & 0x80) && ((m_reg.a ^ result) & 0x80);
+
+    m_reg.a = result & 0xFF;
 
     m_flags.C = result > 0xFF;
 
-    checkFlags(result, comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
+    checkFlags(result & 0xFF, comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
 
-    m_logger->writeInstruction(m_reg, "adc", 0, addr);
+    m_logger->writeInstruction(m_reg, "adc", result, addr);
 }
 
 void nemus::core::CPU::bitAnd(comp::AddressMode addr) {
     unsigned int operand = m_memory->readByte(m_reg, addr);
 
-    m_reg.a = (unsigned char)(operand) & m_reg.a;
+    m_reg.a = (operand & m_reg.a) & 0xFF;
 
     checkFlags(m_reg.a, comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
 
@@ -776,7 +790,7 @@ void nemus::core::CPU::branch(bool doJump) {
 void nemus::core::CPU::bit(comp::AddressMode addr) {
     unsigned int operand = m_memory->readByte(m_reg, addr);
 
-    auto result = (unsigned char)m_reg.a & operand;
+    unsigned int result = (m_reg.a & 0xFF) & (operand & 0xFF);
 
     m_flags.N = (bool)(operand & 0x80);
 
@@ -792,24 +806,24 @@ void nemus::core::CPU::compare(unsigned int &src, comp::AddressMode addr) {
 
     m_flags.C = src >= operand;
 
-    m_flags.Z = src == operand;
-    m_flags.N = (bool)(src & 0x80);
+    m_flags.Z = src - operand == 0;
+    m_flags.N = (bool)(((unsigned char)(src) - (unsigned char)(operand)) & 0x80);
 
     m_logger->writeInstruction(m_reg, "compare", src, addr);
 }
 
 void nemus::core::CPU::decrement(comp::AddressMode addr) {
-    auto operand = (unsigned char)m_memory->readByte(m_reg, addr);
+    auto operand = (unsigned char)(m_memory->readByte(m_reg, addr));
 
-    m_memory->writeByte(m_reg, (operand - 1), addr);
+    m_memory->writeByte(m_reg, (unsigned char)(operand - 1), addr);
 
-    checkFlags(operand - 1, comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
+    checkFlags((unsigned char)(operand - 1), comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
 
     m_logger->writeInstruction(m_reg, "decrement memory", operand, addr);
 }
 
 void nemus::core::CPU::decrement(unsigned int &src) {
-    src = (unsigned char)(src) - 1;
+    src = (unsigned char)((src) - 1);
     src &= 0xFF;
 
     checkFlags(src, comp::FLAG_NEGATIVE | comp::FLAG_ZERO);
@@ -830,9 +844,9 @@ void nemus::core::CPU::xora(comp::AddressMode addr) {
 void nemus::core::CPU::increment(comp::AddressMode addr) {
     unsigned char operand = m_memory->readByte(m_reg, addr);
 
-    m_memory->writeByte(m_reg, (operand + 1), addr);
+    m_memory->writeByte(m_reg, (unsigned char)(operand + 1), addr);
 
-    checkFlags(operand + 1, comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
+    checkFlags((unsigned char)(operand + 1), comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
 
     m_logger->writeInstruction(m_reg, "increment memory", 0, addr);
 }
@@ -863,7 +877,7 @@ void nemus::core::CPU::jump(comp::AddressMode addr) {
         address = m_memory->readWord(m_reg.pc + 1);
     } else {
         unsigned int indirect_address = m_memory->readWord(m_reg.pc + 1);
-        address = m_memory->readWord(indirect_address);
+        address = m_memory->readWordBug(indirect_address);
     }
 
     m_logger->writeInstruction(m_reg, "jump", address, comp::ADDR_MODE_ABSOLUTE);
@@ -978,7 +992,7 @@ void nemus::core::CPU::subtract(comp::AddressMode addr) {
 
     unsigned char result = (unsigned char)(m_reg.a) - (unsigned char)(operand) - 1 - (m_flags.C);
 
-    m_flags.V = (signed char)(m_reg.a) < (signed char)(operand);
+    m_flags.V = ((m_reg.a ^ result) & 0x80) && ((m_reg.a ^ operand) & 0x80);
 
     if(m_flags.V) {
         unsetFlags(comp::FLAG_CARRY);

@@ -1,9 +1,8 @@
 #include "NES.h"
 
 nemus::NES::NES() {
-    setState(comp::RUNNING);
-
     m_logger = new debug::Logger();
+    m_logger->disable();
 
     m_ppu = new core::PPU();
 
@@ -37,7 +36,9 @@ void nemus::NES::run() {
             m_ppu->tick();
         }
 
-        if(++updateCounter > (clockRatio)) {
+        updateCounter += cycles * 3;
+
+        if(updateCounter > (clockRatio)) {
             m_screen->update();
             updateCounter = 0;
         }
