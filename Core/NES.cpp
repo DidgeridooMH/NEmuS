@@ -2,7 +2,7 @@
 
 nemus::NES::NES() {
     m_logger = new debug::Logger();
-    //m_logger->disable();
+    m_logger->disable();
 
     m_ppu = new core::PPU();
 

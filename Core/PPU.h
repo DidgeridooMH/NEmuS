@@ -28,6 +28,8 @@ namespace nemus::core {
 
         int m_scanline = 0;
 
+        unsigned char m_dataBuffer = 0;
+
         // TODO: implement nmi here
         struct {
             bool nmi;

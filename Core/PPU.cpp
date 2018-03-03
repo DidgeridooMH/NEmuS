@@ -250,16 +250,24 @@ unsigned int nemus::core::PPU::readPPUData() {
         m_ppuAddr += 32;
     }
 
-    return value;
+    unsigned char ret = m_dataBuffer;
+    m_dataBuffer = value;
+
+    return ret;
 }
 
 void nemus::core::PPU::writePPUScroll(unsigned int data) {
     if(!m_addressLatch) {
-        m_ppuScrollX = data;
+        m_ppuTmpAddr &= ~0x1f;
+        m_ppuTmpAddr |= (data >> 3) & 0x1f;
+
+        m_ppuScrollX = data & 0x7;
 
         m_addressLatch = true;
     } else {
-        m_ppuScrollY = data;
+        m_ppuTmpAddr &= ~0x73E0;
+        m_ppuTmpAddr |= ((data & 0x7) << 12) |
+                        ((data & 0xF8) << 2);
 
         m_addressLatch = false;
     }

@@ -37,10 +37,6 @@ int nemus::core::CPU::tick() {
         return 0;
     }
 
-//    if(m_reg.pc == 0xC66E) {
-//        int i = 0;
-//    }
-
     unsigned int op = m_memory->readByte(m_reg.pc);
 
     switch(op) {
