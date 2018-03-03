@@ -27,6 +27,7 @@ namespace nemus::core {
             bool N;
             bool Z;
             bool C;
+            bool P;
             bool I;
             bool D;
             bool V;

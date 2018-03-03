@@ -35,7 +35,7 @@ void nemus::core::Memory::loadRom(std::string filename) {
 
     m_rom = new char[size];
 
-    file.read(static_cast<char*>(m_rom), size);
+    file.read(m_rom, size);
 
     // Load PRG-ROM
     // TODO: Move to mapper for support
@@ -48,6 +48,8 @@ void nemus::core::Memory::loadRom(std::string filename) {
 }
 
 unsigned int nemus::core::Memory::readByte(unsigned int address) {
+    address &= 0xFFFF;
+
     if(address < 0x2000) {
         return m_ram[address % 0x800];
     } else if(address < 0x4000) {
@@ -107,7 +109,7 @@ unsigned int nemus::core::Memory::readByte(comp::Registers registers, comp::Addr
 unsigned int nemus::core::Memory::readWordBug(unsigned int address) {
     // Hardware bug causes only low byte to be incremented across pages
     unsigned int lowByte = readByte(address) & 0xFF;
-    unsigned int highByte = readByte((address & 0xFF00) | ((address + 1) & 0xFF)) & 0xFF;
+    unsigned int highByte = readByte((address & 0xFF00) + ((address + 1) & 0xFF)) & 0xFF;
     return highByte << 8 | lowByte;
 }
 
@@ -118,6 +120,8 @@ unsigned int nemus::core::Memory::readWord(unsigned int address) {
 }
 
 bool nemus::core::Memory::writeByte(unsigned char data, unsigned int address) {
+    address &= 0xFFFF;
+
     if(address < 0x2000) {
         m_ram[address % 0x800] = data;
     } else if(address < 0x4000) {
@@ -199,14 +203,14 @@ void nemus::core::Memory::push16(unsigned int data, unsigned int &sp) {
 
 unsigned int nemus::core::Memory::pop(unsigned int &sp) {
     sp++;
-    return m_ram[sp + 0x100];
+    return (m_ram[sp + 0x100] & 0xFF);
 }
 
 unsigned int nemus::core::Memory::pop16(unsigned int &sp) {
     unsigned int lowByte = pop(sp);
     unsigned int highByte = pop(sp);
 
-    unsigned int address = (highByte << 8) | lowByte;
+    unsigned int address = ((highByte << 8) & 0xFF00) | (lowByte & 0xFF);
 
     return address;
 }

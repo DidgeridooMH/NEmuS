@@ -4,8 +4,6 @@
 #include "CPU.h"
 #include "Memory.h"
 
-int counter = 0;
-
 nemus::core::CPU::CPU(Memory* memory, debug::Logger* logger) {
     generateOP();
 
@@ -18,6 +16,7 @@ nemus::core::CPU::CPU(Memory* memory, debug::Logger* logger) {
     m_logger = logger;
 
     m_reg.pc = m_memory->readWord(0xFFFC);
+    //m_reg.pc = 0xc000;
 
     std::stringstream sstream;
     sstream << "Entry point: " << std::hex << m_reg.pc;
@@ -38,47 +37,87 @@ int nemus::core::CPU::tick() {
         return 0;
     }
 
+//    if(m_reg.pc == 0xC66E) {
+//        int i = 0;
+//    }
+
     unsigned int op = m_memory->readByte(m_reg.pc);
 
     switch(op) {
         // NOP
+        case 0x04:
+        case 0x44:
+        case 0x64:
+        case 0x0C:
+        case 0x14:
+        case 0x1A:
+        case 0x1C:
+        case 0x34:
+        case 0x3A:
+        case 0x3C:
+        case 0x54:
+        case 0x5A:
+        case 0x5C:
+        case 0x74:
+        case 0x7A:
+        case 0x7C:
+        case 0xD4:
+        case 0xDA:
+        case 0xDC:
+        case 0xF4:
+        case 0xFA:
+        case 0xFC:
+        case 0x80:
         case 0xEA:
+            m_reg.p = generateFlags();
             m_logger->writeInstruction(m_reg, "NOP", 0, comp::ADDR_MODE_IMPLIED);
             break;
 
         // SEI
         case 0x78:
             setFlags(comp::FLAG_INTERRUPT);
+            m_reg.p = generateFlags();
             m_logger->writeInstruction(m_reg, "SEI", 0, comp::ADDR_MODE_IMPLIED);
             break;
 
         // SEC
         case 0x38:
             setFlags(comp::FLAG_CARRY);
+            m_reg.p = generateFlags();
             m_logger->writeInstruction(m_reg, "SEC", 0, comp::ADDR_MODE_IMPLIED);
             break;
 
+        // SED
+        case 0xF8:
+            setFlags(comp::FLAG_DECIMAL);
+            m_reg.p = generateFlags();
+            m_logger->writeInstruction(m_reg, "SED", 0, comp::ADDR_MODE_IMPLIED);
+            break;
         // CLV
         case 0xB8:
             unsetFlags(comp::FLAG_OVERFLOW);
+            m_reg.p = generateFlags();
             m_logger->writeInstruction(m_reg, "CLV", 0, comp::ADDR_MODE_IMPLIED);
             break;
 
         // CLC
         case 0x18:
             unsetFlags(comp::FLAG_CARRY);
+            m_reg.p = generateFlags();
             m_logger->writeInstruction(m_reg, "CLC", 0, comp::ADDR_MODE_IMPLIED);
             break;
 
         // CLI
         case 0x58:
             unsetFlags(comp::FLAG_INTERRUPT);
+            m_reg.p = generateFlags();
             m_logger->writeInstruction(m_reg, "CLI", 0, comp::ADDR_MODE_IMPLIED);
             break;
 
         // CLD
         case 0xD8:
             unsetFlags(comp::FLAG_DECIMAL);
+            m_reg.p = generateFlags();
             m_logger->writeInstruction(m_reg, "CLD", 0, comp::ADDR_MODE_IMPLIED);
             break;
 
@@ -190,12 +229,15 @@ int nemus::core::CPU::tick() {
         // TXS
         case 0x9A:
             m_reg.sp = m_reg.x;
+            m_reg.p = generateFlags();
             m_logger->writeInstruction(m_reg, "TXS", 0, comp::ADDR_MODE_IMMEDIATE);
             break;
 
         // TSX
         case 0xBA:
             m_reg.x = m_reg.sp;
+            checkFlags(m_reg.x, comp::FLAG_NEGATIVE | comp::FLAG_ZERO);
+            m_reg.p = generateFlags();
             m_logger->writeInstruction(m_reg, "TSX", 0, comp::ADDR_MODE_IMMEDIATE);
             break;
 
@@ -427,6 +469,7 @@ int nemus::core::CPU::tick() {
         case 0x8A:
             m_reg.a = m_reg.x;
             checkFlags(m_reg.a, comp::FLAG_NEGATIVE | comp::FLAG_ZERO);
+            m_reg.p = generateFlags();
             m_logger->writeInstruction(m_reg, "TXA", m_reg.a, comp::ADDR_MODE_IMMEDIATE);
             break;
 
@@ -434,6 +477,7 @@ int nemus::core::CPU::tick() {
         case 0xAA:
             m_reg.x = m_reg.a;
             checkFlags(m_reg.x, comp::FLAG_NEGATIVE | comp::FLAG_ZERO);
+            m_reg.p = generateFlags();
             m_logger->writeInstruction(m_reg, "TAX", m_reg.x, comp::ADDR_MODE_IMMEDIATE);
             break;
 
@@ -441,6 +485,7 @@ int nemus::core::CPU::tick() {
         case 0xA8:
             m_reg.y = m_reg.a;
             checkFlags(m_reg.y, comp::FLAG_NEGATIVE | comp::FLAG_ZERO);
+            m_reg.p = generateFlags();
             m_logger->writeInstruction(m_reg, "TAY", m_reg.y, comp::ADDR_MODE_IMPLIED);
             break;
 
@@ -448,6 +493,7 @@ int nemus::core::CPU::tick() {
         case 0x98:
             m_reg.a = m_reg.y;
             checkFlags(m_reg.a, comp::FLAG_NEGATIVE | comp::FLAG_ZERO);
+            m_reg.p = generateFlags();
             m_logger->writeInstruction(m_reg, "TYA", m_reg.a, comp::ADDR_MODE_IMPLIED);
             break;
 
@@ -522,24 +568,31 @@ int nemus::core::CPU::tick() {
         // PHA
         case 0x48:
             m_memory->push(m_reg.a, m_reg.sp);
+            m_reg.p = generateFlags();
             m_logger->writeInstruction(m_reg, "pha", m_reg.a, comp::ADDR_MODE_IMPLIED);
             break;
 
         // PLA
         case 0x68:
             m_reg.a = m_memory->pop(m_reg.sp);
+            checkFlags(m_reg.a, comp::FLAG_NEGATIVE | comp::FLAG_ZERO);
+            m_reg.p = generateFlags();
             m_logger->writeInstruction(m_reg, "pla", m_reg.a, comp::ADDR_MODE_IMPLIED);
             break;
 
         // PHP
         case 0x08:
+            setFlags(comp::FLAG_PUSHED);
             m_memory->push(generateFlags(), m_reg.sp);
+            unsetFlags(comp::FLAG_PUSHED);
+            m_reg.p = generateFlags();
             m_logger->writeInstruction(m_reg, "php", generateFlags(), comp::ADDR_MODE_IMPLIED);
             break;
 
         // PLP
         case 0x28:
             setFlags(m_memory->pop(m_reg.sp));
+            m_reg.p = generateFlags();
             m_logger->writeInstruction(m_reg, "plp", generateFlags(), comp::ADDR_MODE_IMPLIED);
             break;
 
@@ -598,8 +651,9 @@ int nemus::core::CPU::tick() {
         // RTI
         case 0x40:
             setFlags(m_memory->pop(m_reg.sp));
-            m_reg.pc = m_memory->pop16(m_reg.sp);
+            m_reg.pc = m_memory->pop16(m_reg.sp) - 1;
 
+            m_reg.p = generateFlags();
             m_logger->writeInstruction(m_reg, "rti", m_reg.pc, comp::ADDR_MODE_IMPLIED);
             break;
 
@@ -617,7 +671,7 @@ int nemus::core::CPU::tick() {
 void nemus::core::CPU::interrupt() {
     switch(m_interrupt) {
         case comp::INT_NMI:
-            m_memory->push16(m_reg.pc - 1, m_reg.sp);
+            m_memory->push16(m_reg.pc, m_reg.sp);
             m_memory->push(generateFlags(), m_reg.sp);
 
             unsigned int address = m_memory->readWord(0xFFFA);
@@ -725,6 +779,7 @@ void nemus::core::CPU::generateOP() {
 
 void nemus::core::CPU::resetRegisters() {
     m_reg.p = 0x34;
+    setFlags(0x34);
     m_reg.a, m_reg.x, m_reg.y = 0;
     m_reg.sp = 0xFD;
 }
@@ -734,13 +789,14 @@ void nemus::core::CPU::adc(comp::AddressMode addr) {
 
     unsigned int result = m_reg.a + operand + (int)(m_flags.C);
 
-    m_flags.V = ((m_reg.a ^ operand) & 0x80) && ((m_reg.a ^ result) & 0x80);
+    m_flags.V = ~(m_reg.a ^ operand) & (m_reg.a ^ result) & 0x80;
 
     m_reg.a = result & 0xFF;
 
     m_flags.C = result > 0xFF;
 
     checkFlags(result & 0xFF, comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
+    m_reg.p = generateFlags();
 
     m_logger->writeInstruction(m_reg, "adc", result, addr);
 }
@@ -751,6 +807,7 @@ void nemus::core::CPU::bitAnd(comp::AddressMode addr) {
     m_reg.a = (operand & m_reg.a) & 0xFF;
 
     checkFlags(m_reg.a, comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
+    m_reg.p = generateFlags();
 
     m_logger->writeInstruction(m_reg, "and", operand, addr);
 }
@@ -774,12 +831,14 @@ void nemus::core::CPU::asl(comp::AddressMode addr) {
         m_memory->writeByte(m_reg, operand, addr);
     }
 
+    m_reg.p = generateFlags();
     m_logger->writeInstruction(m_reg, "asl", 0, addr);
 }
 
 void nemus::core::CPU::branch(bool doJump) {
     auto b = static_cast<signed char>(m_memory->readByte(m_reg.pc + 1));
 
+    m_reg.p = generateFlags();
     m_logger->writeInstruction(m_reg, "branch", static_cast<int>(b) & 0xFF, comp::ADDR_MODE_IMMEDIATE);
 
     if(doJump) {
@@ -798,6 +857,7 @@ void nemus::core::CPU::bit(comp::AddressMode addr) {
 
     m_flags.Z = result == 0;
 
+    m_reg.p = generateFlags();
     m_logger->writeInstruction(m_reg, "bit_test", operand, addr);
 }
 
@@ -809,6 +869,7 @@ void nemus::core::CPU::compare(unsigned int &src, comp::AddressMode addr) {
     m_flags.Z = src - operand == 0;
     m_flags.N = (bool)(((unsigned char)(src) - (unsigned char)(operand)) & 0x80);
 
+    m_reg.p = generateFlags();
     m_logger->writeInstruction(m_reg, "compare", src, addr);
 }
 
@@ -819,6 +880,7 @@ void nemus::core::CPU::decrement(comp::AddressMode addr) {
 
     checkFlags((unsigned char)(operand - 1), comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
 
+    m_reg.p = generateFlags();
     m_logger->writeInstruction(m_reg, "decrement memory", operand, addr);
 }
 
@@ -828,6 +890,7 @@ void nemus::core::CPU::decrement(unsigned int &src) {
 
     checkFlags(src, comp::FLAG_NEGATIVE | comp::FLAG_ZERO);
 
+    m_reg.p = generateFlags();
     m_logger->writeInstruction(m_reg, "decrement reg", src, comp::ADDR_MODE_IMMEDIATE);
 }
 
@@ -838,6 +901,7 @@ void nemus::core::CPU::xora(comp::AddressMode addr) {
 
     checkFlags(m_reg.a, comp::FLAG_NEGATIVE | comp::FLAG_ZERO);
 
+    m_reg.p = generateFlags();
     m_logger->writeInstruction(m_reg, "xor", operand, addr);
 }
 
@@ -848,6 +912,7 @@ void nemus::core::CPU::increment(comp::AddressMode addr) {
 
     checkFlags((unsigned char)(operand + 1), comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
 
+    m_reg.p = generateFlags();
     m_logger->writeInstruction(m_reg, "increment memory", 0, addr);
 }
 
@@ -857,6 +922,7 @@ void nemus::core::CPU::increment(unsigned int &src) {
 
     checkFlags(src, comp::FLAG_NEGATIVE | comp::FLAG_ZERO);
 
+    m_reg.p = generateFlags();
     m_logger->writeInstruction(m_reg, "increment reg", 0, comp::ADDR_MODE_IMMEDIATE);
 }
 
@@ -865,6 +931,7 @@ void nemus::core::CPU::subJump() {
 
     unsigned int address = m_memory->readWord(m_reg.pc + 1) - 3;
 
+    m_reg.p = generateFlags();
     m_logger->writeInstruction(m_reg, "jump_sub", address + 3, comp::ADDR_MODE_ABSOLUTE);
 
     m_reg.pc = address;
@@ -880,6 +947,7 @@ void nemus::core::CPU::jump(comp::AddressMode addr) {
         address = m_memory->readWordBug(indirect_address);
     }
 
+    m_reg.p = generateFlags();
     m_logger->writeInstruction(m_reg, "jump", address, comp::ADDR_MODE_ABSOLUTE);
 
     m_reg.pc = address - 3;
@@ -901,6 +969,7 @@ void nemus::core::CPU::shiftRight(comp::AddressMode addr) {
         m_memory->writeByte(m_reg, operand, addr);
     }
 
+    m_reg.p = generateFlags();
     m_logger->writeInstruction(m_reg, "lsr", 0, addr);
 }
 
@@ -908,6 +977,8 @@ void nemus::core::CPU::load(unsigned int &dest, comp::AddressMode addr) {
     dest = m_memory->readByte(m_reg, addr);
 
     checkFlags(dest, comp::FLAG_NEGATIVE | comp::FLAG_ZERO);
+
+    m_reg.p = generateFlags();
 
     m_logger->writeInstruction(m_reg, "load", dest, addr);
 }
@@ -919,17 +990,20 @@ void nemus::core::CPU::ora(comp::AddressMode addr) {
 
     checkFlags(m_reg.a, comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
 
+    m_reg.p = generateFlags();
     m_logger->writeInstruction(m_reg, "ora", operand, addr);
 }
 
 void nemus::core::CPU::store(unsigned int &src, comp::AddressMode addr) {
     m_memory->writeByte(m_reg, src, addr);
+    m_reg.p = generateFlags();
     m_logger->writeInstruction(m_reg, "store", src, addr);
 }
 
 void nemus::core::CPU::returnSub() {
     unsigned int address = m_memory->pop16(m_reg.sp);
 
+    m_reg.p = generateFlags();
     m_logger->writeInstruction(m_reg, "return_sub", address, comp::ADDR_MODE_IMMEDIATE);
 
     m_reg.pc = address;
@@ -958,6 +1032,7 @@ void nemus::core::CPU::rotateRight(comp::AddressMode addr) {
         checkFlags(operand, comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
     }
 
+    m_reg.p = generateFlags();
     m_logger->writeInstruction(m_reg, "ror", 0, addr);
 }
 
@@ -984,25 +1059,25 @@ void nemus::core::CPU::rotateLeft(comp::AddressMode addr) {
         checkFlags(operand, comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
     }
 
+    m_reg.p = generateFlags();
     m_logger->writeInstruction(m_reg, "rol", 0, addr);
 }
 
 void nemus::core::CPU::subtract(comp::AddressMode addr) {
-    unsigned int operand = m_memory->readByte(m_reg, addr);
+    unsigned int operand = m_memory->readByte(m_reg, addr) ^ 0xFF;
 
-    unsigned char result = (unsigned char)(m_reg.a) - (unsigned char)(operand) - 1 - (m_flags.C);
+    unsigned int result = m_reg.a + operand + m_flags.C;
 
-    m_flags.V = ((m_reg.a ^ result) & 0x80) && ((m_reg.a ^ operand) & 0x80);
+    m_flags.V = ~(m_reg.a ^ operand) & (m_reg.a ^ (result & 0xFF)) & 0x80;
 
-    if(m_flags.V) {
-        unsetFlags(comp::FLAG_CARRY);
-    }
+    m_flags.C = result & 0xFF00;
 
-    checkFlags(result, comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
+    checkFlags(result & 0xFF, comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
 
-    m_reg.a = result;
+    m_reg.a = result & 0xFF;
 
-    m_logger->writeInstruction(m_reg, "sbc", 0, addr);
+    m_reg.p = generateFlags();
+    m_logger->writeInstruction(m_reg, "sbc", operand, addr);
 }
 
 void nemus::core::CPU::setFlags(unsigned int flagbits) {
@@ -1024,6 +1099,9 @@ void nemus::core::CPU::setFlags(comp::Flag flag) {
             break;
         case comp::FLAG_INTERRUPT:
             m_flags.I = true;
+            break;
+        case comp::FLAG_PUSHED:
+            m_flags.P = true;
             break;
         case comp::FLAG_DECIMAL:
             m_flags.D = true;
@@ -1047,6 +1125,9 @@ void nemus::core::CPU::unsetFlags(comp::Flag flag) {
             break;
         case comp::FLAG_INTERRUPT:
             m_flags.I = false;
+            break;
+        case comp::FLAG_PUSHED:
+            m_flags.P = false;
             break;
         case comp::FLAG_DECIMAL:
             m_flags.D = false;
@@ -1083,6 +1164,8 @@ unsigned int nemus::core::CPU::generateFlags() {
 
     if(m_flags.N) result += 0x80;
     if(m_flags.V) result += 0x40;
+    result += 0x20;
+    if(m_flags.P) result += 0x10;
     if(m_flags.D) result += 0x08;
     if(m_flags.I) result += 0x04;
     if(m_flags.Z) result += 0x02;

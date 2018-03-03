@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip>
 #include "Logger.h"
 
 nemus::debug::Logger::Logger() {
@@ -34,13 +35,14 @@ void nemus::debug::Logger::writeInstruction(comp::Registers registers,
         return;
     }
 
-    m_fileOut << std::hex
-              << "A: " << registers.a
-              << " X: " << registers.x
-              << " Y: " << registers.y
-              << " SP: " << registers.sp
-              << " $" << registers.pc
-              << ": " << instruction
+    m_fileOut << std::hex << std::uppercase
+              << std::setfill('0') << std::setw(4) << registers.pc
+              << "\tA:" << std::setfill('0') << std::setw(2) << registers.a
+              << " X:" << std::setfill('0') << std::setw(2) << registers.x
+              << " Y:" << std::setfill('0') << std::setw(2) << registers.y
+              << " SP:" << std::setfill('0') << std::setw(2) << registers.sp
+              << " P:" << std::setfill('0') << std::setw(2) << registers.p
+              << " " << instruction
               << " " << result << std::dec << " ";
 
     switch(mode) {

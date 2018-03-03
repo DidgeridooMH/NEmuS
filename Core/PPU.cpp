@@ -220,12 +220,15 @@ unsigned int nemus::core::PPU::readPPUStatus() {
 
 void nemus::core::PPU::writePPUAddr(unsigned int data) {
     if(!m_addressLatch) {
+        m_ppuTmpAddr = 0;
         m_ppuTmpAddr = (data << 8) & 0x3F00;
+
+        m_addressLatch = true;
     } else {
         m_ppuAddr = (m_ppuTmpAddr & 0x3F00) | (data & 0xFF);
-    }
 
-    m_addressLatch = !m_addressLatch;
+        m_addressLatch = false;
+    }
 }
 
 void nemus::core::PPU::writePPUData(unsigned int data) {
@@ -233,10 +236,8 @@ void nemus::core::PPU::writePPUData(unsigned int data) {
 
     if(!m_ppuCtrl.inc_mode) {
         m_ppuAddr += 1;
-        m_ppuAddr %= 0x8000;
     } else {
         m_ppuAddr += 32;
-        m_ppuAddr %= 0x8000;
     }
 }
 
@@ -245,10 +246,8 @@ unsigned int nemus::core::PPU::readPPUData() {
 
     if(!m_ppuCtrl.inc_mode) {
         m_ppuAddr += 1;
-        m_ppuAddr %= 0x8000;
     } else {
         m_ppuAddr += 32;
-        m_ppuAddr %= 0x8000;
     }
 
     return value;
@@ -257,11 +256,13 @@ unsigned int nemus::core::PPU::readPPUData() {
 void nemus::core::PPU::writePPUScroll(unsigned int data) {
     if(!m_addressLatch) {
         m_ppuScrollX = data;
+
+        m_addressLatch = true;
     } else {
         m_ppuScrollY = data;
-    }
 
-    m_addressLatch = !m_addressLatch;
+        m_addressLatch = false;
+    }
 }
 
 void nemus::core::PPU::writeVRAM(unsigned char data, int address) {

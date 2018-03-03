@@ -29,8 +29,9 @@ namespace nemus::comp {
     enum Flag {
         FLAG_CARRY = 0x1,
         FLAG_ZERO = 0x2,
-        FLAG_INTERRUPT = 0x8,
-        FLAG_DECIMAL = 0x10,
+        FLAG_INTERRUPT = 0x4,
+        FLAG_DECIMAL = 0x8,
+        FLAG_PUSHED = 0x10,
         FLAG_OVERFLOW = 0x40,
         FLAG_NEGATIVE = 0x80
     };
