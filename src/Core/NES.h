@@ -1,7 +1,6 @@
 #ifndef NEMUS_NES_H
 #define NEMUS_NES_H
 
-#include "include/ComponentHelper.h"
 #include "Memory.h"
 #include "CPU.h"
 #include "../UI/Screen.h"
@@ -20,12 +19,18 @@ namespace nemus {
 
         long m_speedmodifier = 1.0;
 
+        bool m_gameLoaded = false;
+
     public:
         NES();
 
         ~NES();
 
         void run();
+
+        void loadGame(std::string filename);
+
+        void reset();
 
     };
 }

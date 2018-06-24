@@ -1,6 +1,7 @@
 #include <fstream>
 #include <cstring>
 #include "Memory.h"
+#include "Mappers/NROM.h"
 
 nemus::core::Memory::Memory(debug::Logger* logger, core::PPU *ppu) {
     m_logger = logger;
@@ -9,13 +10,14 @@ nemus::core::Memory::Memory(debug::Logger* logger, core::PPU *ppu) {
     m_ram = new unsigned char[0x10000];
     memset(m_ram, 0, 0x10000);
 
-    loadRom("ROMS/mario.nes");
+    loadRom("ROMS/arkanoid.nes");
 
     m_logger->write("Memory initialized");
 }
 
 nemus::core::Memory::~Memory() {
     delete[] m_ram;
+    delete m_mapper;
 }
 
 void nemus::core::Memory::loadRom(std::string filename) {
@@ -37,11 +39,8 @@ void nemus::core::Memory::loadRom(std::string filename) {
 
     file.read(m_rom, size);
 
-    // Load PRG-ROM
-    // TODO: Move to mapper for support
-    for(unsigned int i = 0; i < 0x8000; i++) {
-        m_ram[0x8000 + i] = m_rom[i + 0x10];
-    }
+    // TODO: Find and sort mappers by their ID
+    m_mapper = new NROM(m_rom);
 
     // TODO: Place this responsiblility in a mapper
     m_mirroring = m_rom[6] & 0x01;
@@ -60,8 +59,7 @@ unsigned int nemus::core::Memory::readByte(unsigned int address) {
         // TODO: Joypad needs implemented
         return 0;
     } else if(address >= 0x6000) {
-        // Implement mapper objects
-        return m_ram[address];
+        return m_mapper->readByte(address);
     } else {
         m_logger->write("Illegal Out of Bounds Read at " + std::to_string(address));
         return 0;
@@ -137,7 +135,7 @@ bool nemus::core::Memory::writeByte(unsigned char data, unsigned int address) {
         m_logger->write("Audio IO Registers are not implemented yet");
         return true;
     } else if(address >= 0x6000) {
-        //m_ram[address] = data;
+        m_mapper->writeByte(data, address);
     } else {
         m_logger->write("Illegal Out of Bounds Write!!!");
         return true;

@@ -17,12 +17,8 @@ nemus::core::PPU::PPU() {
 
     m_ppuRegister = 0;
 
-    for (int i = 0; i < 0xFF; i++) {
+    for (int i = 0; i < 0x100; i++) {
         m_oam[i] = 0;
-    }
-
-    for (int i = 0; i < 0x20; i++) {
-        m_secondaryOAM[i] = 0;
     }
 
     m_ppuCtrl.nmi = false;
@@ -97,26 +93,13 @@ void nemus::core::PPU::renderPixel() {
             color |= (plane1 << 1) & 0x2;
         }
 
-        switch (color) {
-            case 0:
-                m_pixelBuffer[m_cycle + (m_scanline * 256)] = PPU_COLOR_BLACK;
-                break;
-            case 1:
-                m_pixelBuffer[m_cycle + (m_scanline * 256)] = PPU_COLOR_RED;
-                break;
-            case 2:
-                m_pixelBuffer[m_cycle + (m_scanline * 256)] = PPU_COLOR_BLUE;
-                break;
-            case 3:
-                m_pixelBuffer[m_cycle + (m_scanline * 256)] = PPU_COLOR_WHITE;
-                break;
+        if(m_ppuMask.sprite_enable) {
+            if(m_spriteScanline[m_cycle] > 0) {
+                color = m_spriteScanline[m_cycle];
+            }
         }
-    }
 
-    if(m_ppuMask.sprite_enable) {
-        int spritePixel = renderSprites(x, y, sliver, pixel);
-
-        switch (spritePixel) {
+        switch (color) {
             case 0:
                 m_pixelBuffer[m_cycle + (m_scanline * 256)] = PPU_COLOR_BLACK;
                 break;
@@ -196,19 +179,65 @@ void nemus::core::PPU::tick() {
     if(++m_cycle > 256) {
         m_scanline++;
         m_cycle = 0;
-    }
-}
-
-void nemus::core::PPU::evaluateSprites() {
-    if(m_cycle >= 1 && m_cycle <= 64) {
-        m_secondaryOAM[(m_cycle - 1) / 2] = 0xFF;
-    } else if(m_cycle >= 65 && m_cycle <= 256) {
-        if(m_cycle % 2 != 0) {
-            
+        if(m_scanline < 240) {
+            evaluateSprites();
         }
     }
 }
 
+void nemus::core::PPU::evaluateSprites() {
+    // Clear list of sprites
+    for(int i = 0; i < 8; i++) {
+        m_oamEntries[i] = { 0, 0, 0, 0 };
+    }
+
+    m_spriteCount = 0;
+
+    for (int i = 0; i < 0x100; i++) {
+        m_spriteScanline[i] = 0;
+    }
+
+    // May be reset somewhere else...Hblank?
+    m_ppuStatus.sprite_overflow = false;
+
+    // Read through OAM finding first 8 sprites on scanline
+    for(int i = 0; i < 0x100; i += 4) {
+        const int ycheck = m_scanline - m_oam[i];
+        if(ycheck >= 0 && ycheck < 8) {
+            if (m_spriteCount < 8) {
+                m_oamEntries[m_spriteCount] = { m_oam[i], m_oam[i + 1], m_oam[i + 2], m_oam[i + 3] };
+                m_spriteCount++;
+            } else {
+                m_ppuStatus.sprite_overflow = true;
+            }
+        }
+    }
+
+    // Setup scanline buffer
+    for (unsigned int i = 0; i < m_spriteCount; i++) {
+        unsigned int spriteAddr = 0;
+
+        spriteAddr = 0x1000 * m_ppuCtrl.sprite_select;
+        spriteAddr += m_oamEntries[i].index * 0x10;
+        spriteAddr += m_scanline - m_oamEntries[i].y;
+
+        unsigned int plane0 = m_vram[spriteAddr];
+        unsigned int plane1 = m_vram[spriteAddr + 8];
+
+        for (int bit = 7; bit >= 0; bit--) {
+            unsigned int bit0 = (plane0 >> bit) & 1;
+            unsigned int bit1 = (plane1 >> bit) & 1;
+
+            unsigned int color = bit0 | (bit1 << 1);
+
+            unsigned int scanlineAddr = m_oamEntries[i].x + (-bit + 7);
+
+            if (scanlineAddr < 256) {
+                m_spriteScanline[scanlineAddr] = color;
+            }
+        }
+    }
+}
 
 void nemus::core::PPU::writePPU(unsigned int data, unsigned int address) {
     m_ppuRegister = data;
@@ -398,7 +427,7 @@ void nemus::core::PPU::dumpOAM(std::string filename) {
     std::fstream output;
     output.open(filename, std::ios::out | std::ios::binary);
 
-    for(int i = 0; i < 0xFF; i++) {
+    for(int i = 0; i < 0x100; i++) {
         output << m_oam[i];
     }
 
@@ -408,7 +437,7 @@ void nemus::core::PPU::dumpOAM(std::string filename) {
 void nemus::core::PPU::writeOAMDMA(unsigned int data) {
     unsigned int cpuAddress = data << 8;
 
-    for(int i = 0; i < 0xFF; i++) {
+    for(int i = 0; i < 0x100; i++) {
         m_oam[m_oamAddr + i] = (unsigned char)(m_memory->readByte(cpuAddress + i));
     }
 

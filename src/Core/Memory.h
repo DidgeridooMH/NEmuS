@@ -4,6 +4,7 @@
 #include "../Debug/Logger.h"
 #include "include/ComponentHelper.h"
 #include "PPU.h"
+#include "Mappers/Mapper.h"
 
 namespace nemus::core {
 
@@ -14,6 +15,8 @@ namespace nemus::core {
             debug::Logger *m_logger;
 
             PPU *m_ppu;
+
+            Mapper* m_mapper;
 
             unsigned char *m_ram;
 

@@ -1,20 +1,8 @@
 #include "NES.h"
 
 nemus::NES::NES() {
-    m_logger = new debug::Logger();
-    m_logger->disable();
-
     m_ppu = new core::PPU();
-
-    m_memory = new core::Memory(m_logger, m_ppu);
-
-    m_cpu = new core::CPU(m_memory, m_logger);
-
     m_screen = new nemus::ui::Screen(m_ppu);
-
-    m_ppu->setCPU(m_cpu);
-
-    m_ppu->setMemory(m_memory);
 }
 
 nemus::NES::~NES() {
@@ -26,21 +14,48 @@ nemus::NES::~NES() {
 }
 
 void nemus::NES::run() {
-    double clockRatio = 1788908.0 / 60.0;
+    const double clockRatio = 1788908.0 / 60.0;
     int updateCounter = 0;
 
-    while(m_cpu->isRunning() && !m_screen->getQuit()) {
-        int cycles = m_cpu->tick();
+    while(!m_screen->getQuit()) {
+        if (m_gameLoaded) {
+            int cycles = m_cpu->tick();
 
-        for(int i = 0; i < cycles * 3; i++) {
-            m_ppu->tick();
-        }
+            for (int i = 0; i < cycles * 3; i++) {
+                m_ppu->tick();
+            }
 
-        updateCounter += cycles * 3;
+            updateCounter += cycles * 3;
 
-        if(updateCounter * m_speedmodifier > (clockRatio)) {
+            if (updateCounter * m_speedmodifier > (clockRatio)) {
+                m_screen->update();
+                m_screen->render();
+                updateCounter = 0;
+            }
+        } else {
             m_screen->update();
-            updateCounter = 0;
         }
     }
+}
+
+void nemus::NES::loadGame(std::string filename) {
+    m_logger = new debug::Logger();
+    m_logger->disable();
+
+    // TODO: add gamefile param
+    m_memory = new core::Memory(m_logger, m_ppu);
+
+    m_cpu = new core::CPU(m_memory, m_logger);
+
+    m_ppu->setCPU(m_cpu);
+
+    m_ppu->setMemory(m_memory);
+}
+
+void nemus::NES::reset() {
+    delete m_logger;
+    delete m_memory;
+    delete m_cpu;
+
+    // m_ppu->reset();
 }

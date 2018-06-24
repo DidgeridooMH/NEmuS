@@ -12,6 +12,13 @@
 #define PPU_COLOR_WHITE 0xFFFFFFFF;
 
 namespace nemus::core {
+    struct OAMEntry {
+        unsigned int y;
+        unsigned int index;
+        unsigned int attributes;
+        unsigned int x;
+    };
+
     class PPU {
     private:
         CPU* m_cpu = nullptr;
@@ -23,10 +30,11 @@ namespace nemus::core {
         unsigned char* m_vram;
 
         // Primary OAM holds data for all available sprites
-        unsigned char m_oam[0xFF];
+        unsigned char m_oam[0x100];
 
-        // Secondary OAM holds data of sprites on the next scanline
-        unsigned char m_secondaryOAM[0x20];
+        OAMEntry m_oamEntries[8];
+        unsigned int m_spriteCount;
+        unsigned char m_spriteScanline[0x100];
 
         unsigned int m_cycle = 0;
 
@@ -41,11 +49,11 @@ namespace nemus::core {
             bool bg_tile_select;
             bool sprite_select;
             bool inc_mode;
-            int name_select;
+            int  name_select;
         } m_ppuCtrl;
 
         struct {
-            int color_emph;
+            int  color_emph;
             bool sprite_enable;
             bool bg_enable;
             bool slc_enable;

@@ -20,14 +20,14 @@ namespace nemus {
 
             bool m_quit = false;
 
-            void renderScreen();
-
         public:
             Screen(nemus::core::PPU *ppu);
 
             ~Screen();
 
             void update();
+
+            void render();
 
             bool getQuit() { return m_quit; }
 

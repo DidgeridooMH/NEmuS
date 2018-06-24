@@ -46,11 +46,9 @@ void nemus::ui::Screen::update() {
             m_quit = true;
             break;
     }
-
-    renderScreen();
 }
 
-void nemus::ui::Screen::renderScreen() {
+void nemus::ui::Screen::render() {
     SDL_RenderClear(m_renderer);
     SDL_RenderCopy(m_renderer, m_pixelBuffer, NULL, NULL);
     SDL_RenderPresent(m_renderer);
