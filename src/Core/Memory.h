@@ -1,7 +1,6 @@
 #ifndef NEMUS_MEMORY_H
 #define NEMUS_MEMORY_H
 
-#include <iostream>
 #include "../Debug/Logger.h"
 #include "include/ComponentHelper.h"
 #include "PPU.h"
@@ -14,7 +13,7 @@ namespace nemus::core {
         private:
             debug::Logger *m_logger;
 
-            core::PPU *m_ppu;
+            PPU *m_ppu;
 
             unsigned char *m_ram;
 

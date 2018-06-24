@@ -1,21 +1,64 @@
+#include <iostream>
+#include <vector>
 #include "PPU.h"
-
 #include "Memory.h"
 #include "../UI/Screen.h"
 
 nemus::core::PPU::PPU() {
+    m_oamAddr = 0;
+
+    m_ppuScrollX = 0;
+
+    m_ppuScrollY = 0;
+
+    m_ppuAddr = 0;
+
+    m_ppuTmpAddr = 0;
+
+    m_ppuRegister = 0;
+
+    for (int i = 0; i < 0xFF; i++) {
+        m_oam[i] = 0;
+    }
+
+    for (int i = 0; i < 0x20; i++) {
+        m_secondaryOAM[i] = 0;
+    }
+
+    m_ppuCtrl.nmi = false;
+    m_ppuCtrl.master_slave = false;
+    m_ppuCtrl.sprite_height = false;
+    m_ppuCtrl.bg_tile_select = false;
+    m_ppuCtrl.sprite_select = false;
+    m_ppuCtrl.inc_mode = false;
+    m_ppuCtrl.name_select = 0;
+
+    m_ppuMask.color_emph = 0;
+    m_ppuMask.sprite_enable = false;
+    m_ppuMask.bg_enable = false;
+    m_ppuMask.slc_enable = false;
+    m_ppuMask.blc_enable = false;
+    m_ppuMask.greyscale = false;
+
+    m_ppuStatus.vblank = true;
+    m_ppuStatus.s0_hit = false;
+    m_ppuStatus.sprite_overflow = true;
+
     m_cycle = 0;
+
     m_scanline = 0;
 
     m_oamDMA = 2;
 
+    m_oamTransfer = 0;
+
     m_vram = new unsigned char[0x8000];
 
-    m_pixelFIFO = new Uint32[SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(Uint32)];
+    m_pixelBuffer = new unsigned int[SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(unsigned int)];
 }
 
 nemus::core::PPU::~PPU() {
-    delete[] m_pixelFIFO;
+    delete[] m_pixelBuffer;
 }
 
 void nemus::core::PPU::initVRam() {
@@ -24,7 +67,6 @@ void nemus::core::PPU::initVRam() {
     }
 }
 
-// TODO: Compensate for scrolling
 void nemus::core::PPU::renderPixel() {
     int x = m_cycle / 8;
     int y = m_scanline / 8;
@@ -38,52 +80,56 @@ void nemus::core::PPU::renderPixel() {
 
     int plane0 = 0, plane1 = 0;
 
-    if(m_ppuCtrl.bg_tile_select) {
-        plane0 = m_vram[PATTERN_TABLE_1 + (tileID * 0x10) + sliver];
-        plane1 = m_vram[PATTERN_TABLE_1 + (tileID * 0x10) + sliver + 0x08];
-    } else  {
-        plane0 = m_vram[PATTERN_TABLE_0 + (tileID * 0x10) + sliver];
-        plane1 = m_vram[PATTERN_TABLE_0 + (tileID * 0x10) + sliver + 0x08];
+    if(m_ppuMask.bg_enable) {
+        if (m_ppuCtrl.bg_tile_select) {
+            plane0 = m_vram[PATTERN_TABLE_1 + (tileID * 0x10) + sliver];
+            plane1 = m_vram[PATTERN_TABLE_1 + (tileID * 0x10) + sliver + 0x08];
+        } else {
+            plane0 = m_vram[PATTERN_TABLE_0 + (tileID * 0x10) + sliver];
+            plane1 = m_vram[PATTERN_TABLE_0 + (tileID * 0x10) + sliver + 0x08];
+        }
+
+        int color = (plane0 >> (7 - pixel)) & 0x1;
+
+        if (pixel < 7) {
+            color |= (plane1 >> (6 - pixel)) & 0x2;
+        } else {
+            color |= (plane1 << 1) & 0x2;
+        }
+
+        switch (color) {
+            case 0:
+                m_pixelBuffer[m_cycle + (m_scanline * 256)] = PPU_COLOR_BLACK;
+                break;
+            case 1:
+                m_pixelBuffer[m_cycle + (m_scanline * 256)] = PPU_COLOR_RED;
+                break;
+            case 2:
+                m_pixelBuffer[m_cycle + (m_scanline * 256)] = PPU_COLOR_BLUE;
+                break;
+            case 3:
+                m_pixelBuffer[m_cycle + (m_scanline * 256)] = PPU_COLOR_WHITE;
+                break;
+        }
     }
 
-    int color = (plane0 >> (7 - pixel)) & 0x1;
+    if(m_ppuMask.sprite_enable) {
+        int spritePixel = renderSprites(x, y, sliver, pixel);
 
-    if(pixel < 7) {
-        color |= (plane1 >> (6 - pixel)) & 0x2;
-    } else {
-        color |= (plane1 << 1) & 0x2;
-    }
-
-    switch(color) {
-        case 0:
-            m_pixelFIFO[m_cycle + (m_scanline * 256)] = PPU_COLOR_BLACK;
-            break;
-        case 1:
-            m_pixelFIFO[m_cycle + (m_scanline * 256)] = PPU_COLOR_RED;
-            break;
-        case 2:
-            m_pixelFIFO[m_cycle + (m_scanline * 256)] = PPU_COLOR_BLUE;
-            break;
-        case 3:
-            m_pixelFIFO[m_cycle + (m_scanline * 256)] = PPU_COLOR_WHITE;
-            break;
-    }
-
-    int spritePixel = renderSprites(x, y, sliver, pixel);
-
-    switch(spritePixel) {
-        case 0:
-            m_pixelFIFO[m_cycle + (m_scanline * 256)] = PPU_COLOR_BLACK;
-            break;
-        case 1:
-            m_pixelFIFO[m_cycle + (m_scanline * 256)] = PPU_COLOR_RED;
-            break;
-        case 2:
-            m_pixelFIFO[m_cycle + (m_scanline * 256)] = PPU_COLOR_BLUE;
-            break;
-        case 3:
-            m_pixelFIFO[m_cycle + (m_scanline * 256)] = PPU_COLOR_WHITE;
-            break;
+        switch (spritePixel) {
+            case 0:
+                m_pixelBuffer[m_cycle + (m_scanline * 256)] = PPU_COLOR_BLACK;
+                break;
+            case 1:
+                m_pixelBuffer[m_cycle + (m_scanline * 256)] = PPU_COLOR_RED;
+                break;
+            case 2:
+                m_pixelBuffer[m_cycle + (m_scanline * 256)] = PPU_COLOR_BLUE;
+                break;
+            case 3:
+                m_pixelBuffer[m_cycle + (m_scanline * 256)] = PPU_COLOR_WHITE;
+                break;
+        }
     }
 }
 
@@ -98,7 +144,7 @@ int nemus::core::PPU::renderSprites(int x, int y, int sliver, int pixel) {
     if(spriteCount.empty()) {
         return -1;
     } else {
-        int plane0 = 0, plane1 = 0;
+        int plane0, plane1;
 
         if(m_ppuCtrl.sprite_select) {
             plane0 = m_vram[PATTERN_TABLE_1 + (m_oam[spriteCount[0] * 4 + 1] * 0x10) + sliver];
@@ -123,6 +169,7 @@ int nemus::core::PPU::renderSprites(int x, int y, int sliver, int pixel) {
 void nemus::core::PPU::tick() {
     // Visible Scanlines
     if(m_scanline < 240) {
+
         // Cycle 0 idle
         if(m_cycle == 0) {
             m_ppuStatus.vblank = false;
@@ -151,6 +198,17 @@ void nemus::core::PPU::tick() {
         m_cycle = 0;
     }
 }
+
+void nemus::core::PPU::evaluateSprites() {
+    if(m_cycle >= 1 && m_cycle <= 64) {
+        m_secondaryOAM[(m_cycle - 1) / 2] = 0xFF;
+    } else if(m_cycle >= 65 && m_cycle <= 256) {
+        if(m_cycle % 2 != 0) {
+            
+        }
+    }
+}
+
 
 void nemus::core::PPU::writePPU(unsigned int data, unsigned int address) {
     m_ppuRegister = data;

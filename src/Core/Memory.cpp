@@ -56,6 +56,9 @@ unsigned int nemus::core::Memory::readByte(unsigned int address) {
         return m_ppu->readPPU(0x2000 + (address % 8));
     } else if(address == 0x4014) {
         return m_ppu->readPPU(0x4014);
+    } else if(address == 0x4016) {
+        // TODO: Joypad needs implemented
+        return 0;
     } else if(address >= 0x6000) {
         // Implement mapper objects
         return m_ram[address];
