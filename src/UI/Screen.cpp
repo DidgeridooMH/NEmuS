@@ -1,11 +1,11 @@
+#include <chrono>
 #include <QApplication>
 #include <QAction>
-#include <QMenuBar>
-#include <QVBoxLayout>
 #include <QCloseEvent>
-#include <QPainter>
 #include <QFileDialog>
-#include <chrono>
+#include <QMenuBar>
+#include <QPainter>
+#include <QVBoxLayout>
 #include "Screen.h"
 #include "../Core/NES.h"
 
@@ -32,7 +32,7 @@ nemus::ui::Screen::Screen(core::PPU *ppu, NES* nes, QWidget* parent) : QMainWind
 
     std::string title = "NEmuS Alpha";
     setWindowTitle(QString::fromStdString(title));
-    resize(256, 261);
+    resize(SCREEN_WIDTH, SCREEN_HEIGHT + SCREEN_OFFSET);
     show();
 
     m_oldTime = std::chrono::system_clock::now();
@@ -40,16 +40,17 @@ nemus::ui::Screen::Screen(core::PPU *ppu, NES* nes, QWidget* parent) : QMainWind
 
 void nemus::ui::Screen::updateWindow() {
     QApplication::processEvents();
-    
     update();
 }
 
 void nemus::ui::Screen::updateFPS() {
-    auto newTime = std::chrono::system_clock::now();
+    std::chrono::system_clock::time_point newTime = std::chrono::system_clock::now();
     std::chrono::duration<double> deltaTime = newTime - m_oldTime;
+
     std::string title = "NEmuS - FPS: ";
     title += std::to_string(deltaTime.count());
     setWindowTitle(title.c_str());
+
     m_oldTime = newTime;
 }
 
@@ -84,9 +85,9 @@ void nemus::ui::Screen::paintEvent(QPaintEvent *event) {
 
     painter.fillRect(rect(), Qt::black);
 
-    QImage image((unsigned char*)m_ppu->getPixels(), 256, 240, QImage::Format_ARGB32);
+    QImage image((unsigned char*)m_ppu->getPixels(), SCREEN_WIDTH, SCREEN_HEIGHT, QImage::Format_ARGB32);
 
-    painter.drawPixmap(0, 21, QPixmap::fromImage(image));
+    painter.drawPixmap(0, SCREEN_OFFSET, QPixmap::fromImage(image));
 }
 
 void nemus::ui::Screen::openRom() {

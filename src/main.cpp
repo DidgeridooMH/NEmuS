@@ -1,10 +1,10 @@
-#include "Core/NES.h"
 #include <QApplication>
+#include "Core/NES.h"
 
 int main(int argc, char** argv) {
     QApplication a(argc, argv);
 
-    auto* nes = new nemus::NES();
+    nemus::NES* nes = new nemus::NES();
 
     nes->run();
 

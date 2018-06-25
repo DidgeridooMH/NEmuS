@@ -29,7 +29,6 @@ namespace nemus::core {
 
         unsigned char* m_vram;
 
-        // Primary OAM holds data for all available sprites
         unsigned char m_oam[0x100];
 
         OAMEntry m_oamEntries[8];

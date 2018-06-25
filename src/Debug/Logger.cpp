@@ -1,4 +1,3 @@
-#include <iostream>
 #include <iomanip>
 #include "Logger.h"
 
@@ -7,7 +6,9 @@ nemus::debug::Logger::Logger() {
 }
 
 nemus::debug::Logger::~Logger() {
-    if(m_fileOut.is_open()) { m_fileOut.close(); }
+    if(m_fileOut.is_open()) {
+        m_fileOut.close();
+    }
 }
 
 void nemus::debug::Logger::write(std::string message) {
@@ -30,7 +31,6 @@ void nemus::debug::Logger::writeInstruction(comp::Registers registers,
                                             std::string instruction,
                                             unsigned int result,
                                             comp::AddressMode mode) {
-
     if(!m_enable) {
         return;
     }
@@ -38,10 +38,10 @@ void nemus::debug::Logger::writeInstruction(comp::Registers registers,
     m_fileOut << std::hex << std::uppercase
               << std::setfill('0') << std::setw(4) << registers.pc
               << "\tA:" << std::setfill('0') << std::setw(2) << registers.a
-              << " X:" << std::setfill('0') << std::setw(2) << registers.x
-              << " Y:" << std::setfill('0') << std::setw(2) << registers.y
+              << " X:"  << std::setfill('0') << std::setw(2) << registers.x
+              << " Y:"  << std::setfill('0') << std::setw(2) << registers.y
               << " SP:" << std::setfill('0') << std::setw(2) << registers.sp
-              << " P:" << std::setfill('0') << std::setw(2) << registers.p
+              << " P:"  << std::setfill('0') << std::setw(2) << registers.p
               << " " << instruction
               << " " << result << std::dec << " ";
 

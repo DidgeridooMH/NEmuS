@@ -6,7 +6,6 @@
 #include "../Core/include/ComponentHelper.h"
 
 namespace nemus::debug {
-
     class Logger {
     private:
         std::ofstream m_fileOut;
@@ -25,7 +24,6 @@ namespace nemus::debug {
                               unsigned int result,
                               comp::AddressMode mode);
     };
-
 }
 
 #endif

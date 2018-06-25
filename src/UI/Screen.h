@@ -1,59 +1,57 @@
 #ifndef NEMUS_SCREEN_H
 #define NEMUS_SCREEN_H
 
-#include "../Core/PPU.h"
 #include <QMainWindow>
+#include "../Core/PPU.h"
 
-#define SCREEN_WIDTH 256
+#define SCREEN_OFFSET 21
 #define SCREEN_HEIGHT 240
+#define SCREEN_WIDTH  256
 
 namespace nemus {
     class NES;
 }
 
-namespace nemus {
-    namespace ui {
-        class Screen : public QMainWindow{
+namespace nemus::ui {
+    class Screen : public QMainWindow{
 
-        Q_OBJECT
+    Q_OBJECT
 
-        private:
-            core::PPU *m_ppu = nullptr;
-            NES* m_nes = nullptr;
+    private:
+        NES*       m_nes = nullptr;
+        core::PPU* m_ppu = nullptr;
 
-            bool m_quit = false;
+        QMenu*   m_fileMenu;
+        QAction* m_loadRomAction;
+        QAction* m_exitAction;
 
-            QMenu* m_fileMenu;
-            QAction* m_loadRomAction;
-            QAction* m_exitAction;
+        bool m_quit = false;
+        std::chrono::system_clock::time_point m_oldTime;
 
-            std::chrono::system_clock::time_point m_oldTime;
+    public:
+        Screen(core::PPU *ppu, NES* nes, QWidget* parent);
 
-        public:
-            Screen(core::PPU *ppu, NES* nes, QWidget* parent);
+        void updateWindow();
 
-            void updateWindow();
+        void updateFPS();
 
-            void updateFPS();
+        bool getQuit() { return m_quit; }
 
-            bool getQuit() { return m_quit; }
+        void create_menu();
 
-            void create_menu();
+        void paintEvent(QPaintEvent *event);
+        void closeEvent(QCloseEvent *event);
 
-            void paintEvent(QPaintEvent *event);
-            void closeEvent(QCloseEvent *event);
+    protected:
+    #ifndef QT_NO_CONTEXTMENU
+        void contextMenuEvent(QContextMenuEvent* event) override;
+    #endif
 
-        protected:
-        #ifndef QT_NO_CONTEXTMENU
-            void contextMenuEvent(QContextMenuEvent* event) override;
-        #endif
+    signals:
 
-        signals:
-
-        public slots:
-            void openRom();
-        };
-    }
+    public slots:
+        void openRom();
+    };
 }
 
 #endif
