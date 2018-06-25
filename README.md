@@ -3,8 +3,9 @@ NEmuS is an NES emulator written in C++ using the Qt libraries. Cross compatibil
 
 ## Building
 ### Setting Up Libraries
-Add the directories "include" and "lib" to the src/ directory. Then, put the corresponding Qt .lib files into a folder labeled x64. (The destination should look like src/lib/x64/{Library Files})
-Inside the include folder add header files for Qt.
+ - Add the directories "include" and "lib" to the src/ directory. 
+ - Then, put the corresponding Qt .lib files into a folder labeled x64. (The destination should look like src/lib/x64/{Library Files})
+ - Inside the include folder add header files for Qt.
 
 ### CMake Build
 ```
