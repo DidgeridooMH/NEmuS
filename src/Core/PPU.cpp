@@ -5,6 +5,10 @@
 #include "../UI/Screen.h"
 
 nemus::core::PPU::PPU() {
+    reset();
+}
+
+void nemus::core::PPU::reset() {
     m_oamAddr = 0;
 
     m_ppuScrollX = 0;

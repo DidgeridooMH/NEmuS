@@ -3,14 +3,14 @@
 #include "Memory.h"
 #include "Mappers/NROM.h"
 
-nemus::core::Memory::Memory(debug::Logger* logger, core::PPU *ppu) {
+nemus::core::Memory::Memory(debug::Logger* logger, core::PPU *ppu, std::string filename) {
     m_logger = logger;
     m_ppu = ppu;
 
     m_ram = new unsigned char[0x10000];
     memset(m_ram, 0, 0x10000);
 
-    loadRom("ROMS/arkanoid.nes");
+    loadRom(filename);
 
     m_logger->write("Memory initialized");
 }

@@ -100,6 +100,8 @@ namespace nemus::core {
 
         ~PPU();
 
+        void reset();
+
         void setCPU(nemus::core::CPU* cpu) { m_cpu = cpu; }
 
         void setMemory(nemus::core::Memory* memory) { m_memory = memory; initVRam(); }

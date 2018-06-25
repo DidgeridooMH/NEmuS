@@ -3,11 +3,37 @@ project(NEmuS)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++ --disable-stdio-redirect")
+set(CMAKE_AUTOMOC ON)
+
+find_package(Qt5Core REQUIRED)
+find_package(Qt5Widgets REQUIRED)
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
 link_directories(${PROJECT_SOURCE_DIR}/lib/x64)
 
-set(SOURCE_FILES main.cpp Core/NES.cpp Core/NES.h Core/include/ComponentHelper.h Core/CPU.cpp Core/CPU.h Core/Memory.cpp Core/Memory.h Debug/Logger.cpp Debug/Logger.h Core/PPU.cpp Core/PPU.h UI/Screen.cpp UI/Screen.h Core/Mappers/Mapper.h Core/Mappers/NROM.h Core/Mappers/NROM.cpp)
-add_executable(NEmuS ${SOURCE_FILES})
+set(SOURCE 
+    main.cpp
+    Core/NES.cpp
+    Core/CPU.cpp
+    Core/Memory.cpp
+    Debug/Logger.cpp
+    Core/PPU.cpp
+    UI/Screen.cpp
+    Core/Mappers/NROM.cpp
+    )
 
-target_link_libraries(NEmuS SDL2main SDL2)
+set(HEADERS
+    Core/NES.h
+    Core/include/ComponentHelper.h
+    Core/CPU.h
+    Core/Memory.h
+    Debug/Logger.h
+    Core/PPU.h
+    UI/Screen.h
+    Core/Mappers/Mapper.h
+    Core/Mappers/NROM.h
+    )
+
+add_executable(NEmuS ${SOURCE} ${HEADERS})
+
+target_link_libraries(NEmuS Qt5::Core Qt5::Widgets)

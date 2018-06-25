@@ -1,55 +1,95 @@
-#include <iostream>
+#include <QApplication>
+#include <QAction>
+#include <QMenuBar>
+#include <QVBoxLayout>
+#include <QCloseEvent>
+#include <QPainter>
+#include <QFileDialog>
+#include <chrono>
 #include "Screen.h"
+#include "../Core/NES.h"
 
-nemus::ui::Screen::Screen(nemus::core::PPU *ppu) {
+nemus::ui::Screen::Screen(core::PPU *ppu, NES* nes, QWidget* parent) : QMainWindow(parent) {
     m_ppu = ppu;
+    m_nes = nes;
 
-    if(SDL_Init(SDL_INIT_VIDEO) != 0) {
-        std::cout << "SDL_Init Error: " << SDL_GetError() << std::endl;
-    }
+    QWidget* widget = new QWidget;
+    setCentralWidget(widget);
 
-    m_window = SDL_CreateWindow("NEmuS Alpha Build", 100, 100, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
-    if(m_window == nullptr) {
-        std::cout << "SDL_CreateWindow Error: " << SDL_GetError() << std::endl;
-        SDL_Quit();
-    }
+    QWidget* topFiller = new QWidget;
+    topFiller->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
-    m_renderer = SDL_CreateRenderer(m_window, -1, SDL_RENDERER_ACCELERATED);
-    if(m_renderer == nullptr) {
-        SDL_DestroyWindow(m_window);
-        std::cout << "SDL_CreateRenderer Error: " << SDL_GetError() << std::endl;
-        SDL_Quit();
-    }
+    QWidget *bottomFiller = new QWidget;
+    bottomFiller->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
-    m_pixelBuffer = SDL_CreateTexture(m_renderer,
-                                      SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC,
-                                      SCREEN_WIDTH, SCREEN_HEIGHT);
+    QVBoxLayout *layout = new QVBoxLayout;
+    layout->setMargin(5);
+    layout->addWidget(topFiller);
+    layout->addWidget(bottomFiller);
+    widget->setLayout(layout);
 
+    create_menu();
+
+    std::string title = "NEmuS Alpha";
+    setWindowTitle(QString::fromStdString(title));
+    resize(256, 261);
+    show();
+
+    m_oldTime = std::chrono::system_clock::now();
 }
 
-nemus::ui::Screen::~Screen() {
-    SDL_DestroyTexture(m_pixelBuffer);
-    SDL_DestroyRenderer(m_renderer);
-    SDL_DestroyWindow(m_window);
-    SDL_Quit();
+void nemus::ui::Screen::updateWindow() {
+    QApplication::processEvents();
+    
+    update();
 }
 
-void nemus::ui::Screen::update() {
-    SDL_Event event;
-
-    SDL_UpdateTexture(m_pixelBuffer, NULL, m_ppu->getPixels(), SCREEN_WIDTH * sizeof(Uint32));
-
-    SDL_PollEvent(&event);
-
-    switch(event.type) {
-        case SDL_QUIT:
-            m_quit = true;
-            break;
-    }
+void nemus::ui::Screen::updateFPS() {
+    auto newTime = std::chrono::system_clock::now();
+    std::chrono::duration<double> deltaTime = newTime - m_oldTime;
+    std::string title = "NEmuS - FPS: ";
+    title += std::to_string(deltaTime.count());
+    setWindowTitle(title.c_str());
+    m_oldTime = newTime;
 }
 
-void nemus::ui::Screen::render() {
-    SDL_RenderClear(m_renderer);
-    SDL_RenderCopy(m_renderer, m_pixelBuffer, NULL, NULL);
-    SDL_RenderPresent(m_renderer);
+void nemus::ui::Screen::create_menu() {
+    m_loadRomAction = new QAction(tr("&Load ROM... (Fast)"), this);
+    connect(m_loadRomAction, &QAction::triggered, this, &Screen::openRom);
+
+    m_exitAction = new QAction(tr("&Exit"), this);
+    connect(m_exitAction, &QAction::triggered, this, &QWidget::close);
+
+    m_fileMenu = menuBar()->addMenu(tr("&File"));
+    m_fileMenu->addAction(m_loadRomAction);
+    m_fileMenu->addAction(m_exitAction);
+}
+
+void nemus::ui::Screen::closeEvent(QCloseEvent *event) {
+    event->accept();
+    m_quit = true;
+}
+
+#ifndef QT_NO_CONTEXTMENU
+void nemus::ui::Screen::contextMenuEvent(QContextMenuEvent* event) {
+    QMenu menu(this);
+    menu.addAction(m_loadRomAction);
+    menu.addAction(m_exitAction);
+    menu.exec(event->globalPos());
+}
+#endif // QT_NO_CONTEXTMENU
+
+void nemus::ui::Screen::paintEvent(QPaintEvent *event) {
+    QPainter painter(this);
+
+    painter.fillRect(rect(), Qt::black);
+
+    QImage image((unsigned char*)m_ppu->getPixels(), 256, 240, QImage::Format_ARGB32);
+
+    painter.drawPixmap(0, 21, QPixmap::fromImage(image));
+}
+
+void nemus::ui::Screen::openRom() {
+    QString file_name = QFileDialog::getOpenFileName(this, tr("Open Rom"), "", tr("ROM Files (*.nes)"));
+    m_nes->loadGame(file_name.toStdString());
 }

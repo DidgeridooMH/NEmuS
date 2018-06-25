@@ -1,36 +1,57 @@
 #ifndef NEMUS_SCREEN_H
 #define NEMUS_SCREEN_H
 
-#include <SDL.h>
 #include "../Core/PPU.h"
+#include <QMainWindow>
 
 #define SCREEN_WIDTH 256
 #define SCREEN_HEIGHT 240
 
 namespace nemus {
+    class NES;
+}
+
+namespace nemus {
     namespace ui {
-        class Screen {
+        class Screen : public QMainWindow{
+
+        Q_OBJECT
+
         private:
-            nemus::core::PPU *m_ppu = nullptr;
-
-            SDL_Window *m_window = nullptr;
-            SDL_Renderer *m_renderer = nullptr;
-
-            SDL_Texture *m_pixelBuffer = nullptr;
+            core::PPU *m_ppu = nullptr;
+            NES* m_nes = nullptr;
 
             bool m_quit = false;
 
+            QMenu* m_fileMenu;
+            QAction* m_loadRomAction;
+            QAction* m_exitAction;
+
+            std::chrono::system_clock::time_point m_oldTime;
+
         public:
-            Screen(nemus::core::PPU *ppu);
+            Screen(core::PPU *ppu, NES* nes, QWidget* parent);
 
-            ~Screen();
+            void updateWindow();
 
-            void update();
-
-            void render();
+            void updateFPS();
 
             bool getQuit() { return m_quit; }
 
+            void create_menu();
+
+            void paintEvent(QPaintEvent *event);
+            void closeEvent(QCloseEvent *event);
+
+        protected:
+        #ifndef QT_NO_CONTEXTMENU
+            void contextMenuEvent(QContextMenuEvent* event) override;
+        #endif
+
+        signals:
+
+        public slots:
+            void openRom();
         };
     }
 }

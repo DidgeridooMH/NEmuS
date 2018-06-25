@@ -2,7 +2,7 @@
 
 nemus::NES::NES() {
     m_ppu = new core::PPU();
-    m_screen = new nemus::ui::Screen(m_ppu);
+    m_screen = new nemus::ui::Screen(m_ppu, this, nullptr);
 }
 
 nemus::NES::~NES() {
@@ -28,28 +28,32 @@ void nemus::NES::run() {
             updateCounter += cycles * 3;
 
             if (updateCounter * m_speedmodifier > (clockRatio)) {
-                m_screen->update();
-                m_screen->render();
+                m_screen->updateFPS();
+                m_screen->updateWindow();
                 updateCounter = 0;
             }
         } else {
-            m_screen->update();
+            m_screen->updateWindow();
         }
     }
 }
 
 void nemus::NES::loadGame(std::string filename) {
+    reset();
+
     m_logger = new debug::Logger();
     m_logger->disable();
 
     // TODO: add gamefile param
-    m_memory = new core::Memory(m_logger, m_ppu);
+    m_memory = new core::Memory(m_logger, m_ppu, filename);
 
     m_cpu = new core::CPU(m_memory, m_logger);
 
     m_ppu->setCPU(m_cpu);
 
     m_ppu->setMemory(m_memory);
+
+    m_gameLoaded = true;
 }
 
 void nemus::NES::reset() {
@@ -57,5 +61,5 @@ void nemus::NES::reset() {
     delete m_memory;
     delete m_cpu;
 
-    // m_ppu->reset();
+    m_ppu->reset();
 }

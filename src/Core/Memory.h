@@ -26,7 +26,7 @@ namespace nemus::core {
             char m_mirroring;
 
         public:
-            Memory(debug::Logger *logger, core::PPU *ppu);
+            Memory(debug::Logger *logger, core::PPU *ppu, std::string filename);
 
             ~Memory();
 
