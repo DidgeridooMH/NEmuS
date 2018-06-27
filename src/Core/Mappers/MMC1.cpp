@@ -1,6 +1,14 @@
 #include <cstring>
 #include "MMC1.h"
 
+nemus::core::MMC1::MMC1(char* romStart, long romSize, char* savStart, long savSize) : MMC1(romStart, romSize) {
+    for (unsigned int i = 0; i < 0x2000; i++) {
+        if (i < savSize) {
+            m_CPUMemory[i] = savStart[i];
+        }
+    }
+}
+
 nemus::core::MMC1::MMC1(char* romStart, long size) {
     m_CPUMemory = new unsigned char[romStart[4] * 0x4000 + 0x2000];
     memset(m_CPUMemory, 0, romStart[4] * 0x4000 + 0x2000);
@@ -60,6 +68,10 @@ unsigned nemus::core::MMC1::readBytePPU(unsigned address) {
 }
 
 void nemus::core::MMC1::writeByte(unsigned char data, unsigned address) {
+    if (address >= 0xE000) {
+        int i = 0;
+    }
+
     if (address >= 0x6000 && address < 0x8000) {
         m_CPUMemory[address - 0x6000] = data;
     } else {
@@ -75,17 +87,26 @@ void nemus::core::MMC1::writeBytePPU(unsigned char data, unsigned address) {
 
 void nemus::core::MMC1::adjustShiftRegister(unsigned char data, unsigned address) {
     if(data & 0x80) {
+        m_shiftRegister = 0x10;
+
         unsigned char control = 0;
         control |= (m_control.prg_mode & 3) << 2;
         control |= (m_control.chr_mode & 1) << 4;
         control |= m_control.mirroring & 3;
-        m_shiftRegister = 0xC | control;
-        writeControl();
+        control |= 0xC;
+
+        m_control.mirroring = control & 3;
+        m_control.prg_mode = (control >> 2) & 3;
+        m_control.chr_mode = (control >> 4) & 1;
+
+        updateBanks();
     } else {
+        bool write = m_shiftRegister & 1;
+
         m_shiftRegister >>= 1;
         m_shiftRegister |= (data & 1) << 4;
         
-        if (m_shiftRegister & 1) {
+        if (write) {
             if (address >= 0x8000 && address < 0xA000) {
                 writeControl();
             }
@@ -133,8 +154,6 @@ void nemus::core::MMC1::writeCHRBank1() {
 }
 
 void nemus::core::MMC1::writePRGBank() {
-    m_enableRAM = !(m_shiftRegister & 0x10);
-
     m_prgBank = m_shiftRegister;
 
     m_prgBank &= 0xF;

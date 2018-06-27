@@ -10,6 +10,11 @@ namespace nemus::core {
 
         class CPU;
 
+        struct FileInfo {
+            char* start_of_file;
+            long size;
+        };
+
         class Memory {
         private:
             debug::Logger *m_logger;
@@ -24,6 +29,8 @@ namespace nemus::core {
 
             // TODO: Move to mapper
             char m_mirroring;
+
+            FileInfo loadSaveFile(std::string filename);
 
         public:
             Memory(debug::Logger *logger, core::PPU *ppu, std::string filename);

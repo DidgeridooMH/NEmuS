@@ -10,8 +10,6 @@ namespace nemus::core {
 
         unsigned char* m_PPUMemory;
 
-        bool m_enableRAM = true;
-
         int m_prgBank0;
         int m_prgBank1;
         int m_chrBank0;
@@ -41,6 +39,7 @@ namespace nemus::core {
 
     public:
         MMC1(char* romStart, long size);
+        MMC1(char* romStart, long romSize, char* savStart, long savSize);
         ~MMC1();
 
         unsigned int readByte(unsigned int address) override;

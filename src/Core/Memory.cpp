@@ -24,8 +24,6 @@ nemus::core::Memory::~Memory() {
 void nemus::core::Memory::loadRom(std::string filename) {
     std::ifstream file;
 
-    // Test rom
-    // TODO: Add way to load different games
     file.open(filename, std::ios::ate | std::ios::binary);
 
     if(!file) {
@@ -39,6 +37,8 @@ void nemus::core::Memory::loadRom(std::string filename) {
     m_rom = new char[size];
 
     file.read(m_rom, size);
+
+    file.close();
     
     unsigned char mapperID = (m_rom[6] >> 4) & 0xF;
     mapperID |= (m_rom[7] & 0xF0);
@@ -48,8 +48,18 @@ void nemus::core::Memory::loadRom(std::string filename) {
         m_mapper = new NROM(m_rom);
         break;
     case 1:
-        m_mapper = new MMC1(m_rom, size);
+    {
+        int extOffset = filename.find('.');
+        FileInfo savFile = loadSaveFile(filename.substr(0, extOffset));
+
+        if (savFile.size) {
+            m_mapper = new MMC1(m_rom, size, savFile.start_of_file, savFile.size);
+        }
+        else {
+            m_mapper = new MMC1(m_rom, size);
+        }
         break;
+    }
     default:
         m_logger->write("Invalid mapper id...using NROM and hoping for the best.");
         m_mapper = new NROM(m_rom);
@@ -58,6 +68,29 @@ void nemus::core::Memory::loadRom(std::string filename) {
 
     // TODO: Place this responsiblility in a mapper
     m_mirroring = m_rom[6] & 0x01;
+}
+
+nemus::core::FileInfo nemus::core::Memory::loadSaveFile(std::string filename) {
+    filename += ".sav";
+
+    std::ifstream file;
+
+    file.open(filename, std::ios::ate | std::ios::binary);
+
+    if (!file) {
+        return {nullptr, 0};
+    }
+
+    long size = file.tellg();
+    file.seekg(file.beg);
+
+    char* savRam = new char[size];
+
+    file.read(savRam, size);
+
+    file.close();
+
+    return {savRam, size};
 }
 
 unsigned int nemus::core::Memory::readByte(unsigned int address) {
@@ -146,7 +179,6 @@ bool nemus::core::Memory::writeByte(unsigned char data, unsigned int address) {
         return true;
     } else if(address < 0x4020) {
         // TODO: Implement IO registers
-        m_logger->write("Audio IO Registers are not implemented yet");
         return true;
     } else if(address >= 0x6000) {
         m_mapper->writeByte(data, address);
