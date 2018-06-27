@@ -7,7 +7,9 @@ namespace nemus::core {
 
     class NROM : public Mapper {
     private:
-        unsigned char m_fixedMemory[0xA000];
+        unsigned char* m_fixedCPUMemory;
+
+        unsigned char* m_fixedPPUMemory;
 
     public:
         NROM(char* romStart);
@@ -15,7 +17,11 @@ namespace nemus::core {
 
         unsigned int readByte(unsigned int address) override;
 
+        unsigned int readBytePPU(unsigned int address) override;
+
         void writeByte(unsigned char data, unsigned int address) override;
+
+        void writeBytePPU(unsigned char data, unsigned int address) override;
     };
 
 }

@@ -18,7 +18,7 @@ void nemus::NES::run() {
     int updateCounter = 0;
 
     while(!m_screen->getQuit()) {
-        if (m_gameLoaded) {
+        if (m_gameLoaded && m_cpu->isRunning()) {
             int cycles = m_cpu->tick();
 
             for (int i = 0; i < cycles * 3; i++) {
@@ -42,9 +42,8 @@ void nemus::NES::loadGame(std::string filename) {
     reset();
 
     m_logger = new debug::Logger();
-    m_logger->disable();
+    //m_logger->disable();
 
-    // TODO: add gamefile param
     m_memory = new core::Memory(m_logger, m_ppu, filename);
 
     m_cpu = new core::CPU(m_memory, m_logger);

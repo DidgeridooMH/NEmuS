@@ -791,7 +791,9 @@ void nemus::core::CPU::generateOP() {
 void nemus::core::CPU::resetRegisters() {
     m_reg.p = 0x34;
     setFlags(0x34);
-    m_reg.a, m_reg.x, m_reg.y = 0;
+    m_reg.a = 0;
+    m_reg.x = 0;
+    m_reg.y = 0;
     m_reg.sp = 0xFD;
 }
 
@@ -969,6 +971,9 @@ void nemus::core::CPU::shiftRight(comp::AddressMode addr) {
         m_flags.C = (bool)(m_reg.a & 0x01);
         m_reg.a = (m_reg.a & 0xFF) >> 1;
         checkFlags(m_reg.a, comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
+
+        m_reg.p = generateFlags();
+        m_logger->writeInstruction(m_reg, "lsr", m_reg.a, addr);
     } else {
         unsigned int operand = m_memory->readByte(m_reg, addr);
 
@@ -978,10 +983,11 @@ void nemus::core::CPU::shiftRight(comp::AddressMode addr) {
         checkFlags(operand, comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
 
         m_memory->writeByte(m_reg, operand, addr);
+
+        m_reg.p = generateFlags();
+        m_logger->writeInstruction(m_reg, "lsr", operand, addr);
     }
 
-    m_reg.p = generateFlags();
-    m_logger->writeInstruction(m_reg, "lsr", 0, addr);
 }
 
 void nemus::core::CPU::load(unsigned int &dest, comp::AddressMode addr) {

@@ -54,17 +54,13 @@ void nemus::core::PPU::reset() {
 
     m_vram = new unsigned char[0x8000];
 
-    m_pixelBuffer = new unsigned int[SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(unsigned int)];
+    m_pixelBuffer = new unsigned int[SCREEN_WIDTH * SCREEN_HEIGHT];
+    memset(m_pixelBuffer, 0, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(unsigned int));
 }
 
 nemus::core::PPU::~PPU() {
     delete[] m_pixelBuffer;
-}
-
-void nemus::core::PPU::initVRam() {
-    for(int i = 0; i < 0x2000; i++) {
-        m_vram[i] = m_memory->readRom(0x8000 + i + 0x10);
-    }
+    delete[] m_vram;
 }
 
 void nemus::core::PPU::renderPixel() {
@@ -82,11 +78,11 @@ void nemus::core::PPU::renderPixel() {
 
     if(m_ppuMask.bg_enable) {
         if (m_ppuCtrl.bg_tile_select) {
-            plane0 = m_vram[PATTERN_TABLE_1 + (tileID * 0x10) + sliver];
-            plane1 = m_vram[PATTERN_TABLE_1 + (tileID * 0x10) + sliver + 0x08];
+            plane0 = m_memory->readPPUByte(PATTERN_TABLE_1 + (tileID * 0x10) + sliver);
+            plane1 = m_memory->readPPUByte(PATTERN_TABLE_1 + (tileID * 0x10) + sliver + 0x08);
         } else {
-            plane0 = m_vram[PATTERN_TABLE_0 + (tileID * 0x10) + sliver];
-            plane1 = m_vram[PATTERN_TABLE_0 + (tileID * 0x10) + sliver + 0x08];
+            plane0 = m_memory->readPPUByte(PATTERN_TABLE_0 + (tileID * 0x10) + sliver);
+            plane1 = m_memory->readPPUByte(PATTERN_TABLE_0 + (tileID * 0x10) + sliver + 0x08);
         }
 
         int color = (plane0 >> (7 - pixel)) & 0x1;
@@ -120,52 +116,15 @@ void nemus::core::PPU::renderPixel() {
     }
 }
 
-int nemus::core::PPU::renderSprites(int x, int y, int sliver, int pixel) {
-    std::vector<int> spriteCount;
-    for (int i = 0; i < 64; i++) {
-        if (m_oam[i * 4] == y && m_oam[i * 4 + 3] == x) {
-            spriteCount.push_back(i);
-        }
-    }
-
-    if(spriteCount.empty()) {
-        return -1;
-    } else {
-        int plane0, plane1;
-
-        if(m_ppuCtrl.sprite_select) {
-            plane0 = m_vram[PATTERN_TABLE_1 + (m_oam[spriteCount[0] * 4 + 1] * 0x10) + sliver];
-            plane1 = m_vram[PATTERN_TABLE_1 + (m_oam[spriteCount[0] * 4 + 1] * 0x10) + sliver + 0x08];
-        } else  {
-            plane0 = m_vram[PATTERN_TABLE_0 + (m_oam[spriteCount[0] * 4 + 1] * 0x10) + sliver];
-            plane1 = m_vram[PATTERN_TABLE_0 + (m_oam[spriteCount[0] * 4 + 1] * 0x10) + sliver + 0x08];
-        }
-
-        int color = (plane0 >> (7 - pixel)) & 0x1;
-
-        if(pixel < 7) {
-            color |= (plane1 >> (6 - pixel)) & 0x2;
-        } else {
-            color |= (plane1 << 1) & 0x2;
-        }
-
-        return color;
-    }
-}
-
 void nemus::core::PPU::tick() {
-    // Visible Scanlines
     if(m_scanline < 240) {
 
-        // Cycle 0 idle
         if(m_cycle == 0) {
             m_ppuStatus.vblank = false;
         }
 
         renderPixel();
 
-    } else if(m_scanline == 240) {
-        // IDLE
     } else if(m_scanline < 261) {
         if(m_cycle == 1) {
             if(m_ppuCtrl.nmi) {
@@ -201,7 +160,6 @@ void nemus::core::PPU::evaluateSprites() {
         m_spriteScanline[i] = 0;
     }
 
-    // May be reset somewhere else...Hblank?
     m_ppuStatus.sprite_overflow = false;
 
     // Read through OAM finding first 8 sprites on scanline
@@ -225,8 +183,8 @@ void nemus::core::PPU::evaluateSprites() {
         spriteAddr += m_oamEntries[i].index * 0x10;
         spriteAddr += m_scanline - m_oamEntries[i].y;
 
-        unsigned int plane0 = m_vram[spriteAddr];
-        unsigned int plane1 = m_vram[spriteAddr + 8];
+        unsigned int plane0 = m_memory->readPPUByte(spriteAddr);
+        unsigned int plane1 = m_memory->readPPUByte(spriteAddr + 8);
 
         for (int bit = 7; bit >= 0; bit--) {
             unsigned int bit0 = (plane0 >> bit) & 1;
@@ -362,17 +320,17 @@ void nemus::core::PPU::writePPUData(unsigned int data) {
 }
 
 unsigned int nemus::core::PPU::readPPUData() {
-    unsigned int value = m_vram[m_ppuAddr];
+    unsigned int value = (m_ppuAddr >= 0x2000) ? m_vram[m_ppuAddr] : m_memory->readPPUByte(m_ppuAddr);
 
     unsigned char ret = m_dataBuffer;
+
+    m_dataBuffer = value;
 
     if(!m_ppuCtrl.inc_mode) {
         m_ppuAddr += 1;
     } else {
         m_ppuAddr += 32;
     }
-
-    m_dataBuffer = value;
 
     if(m_ppuAddr > 0x3EFF) {
         ret = value;
@@ -382,10 +340,6 @@ unsigned int nemus::core::PPU::readPPUData() {
 }
 
 void nemus::core::PPU::writePPUScroll(unsigned int data) {
-    if(data > 0) {
-        int i = 0;
-    }
-
     if(!m_addressLatch) {
         m_ppuTmpAddr &= ~0x1f;
         m_ppuTmpAddr |= (data >> 3) & 0x1f;
@@ -403,7 +357,11 @@ void nemus::core::PPU::writePPUScroll(unsigned int data) {
 }
 
 void nemus::core::PPU::writeVRAM(unsigned char data, int address) {
-    m_vram[address] = data;
+    if (address >= 0x2000) {
+        m_vram[address] = data;
+    } else {
+        m_memory->writePPUByte(data, address);
+    }
 
     if(m_memory->getMirroring()) {
         if(address >= 0x2000 && address < 0x2800) {

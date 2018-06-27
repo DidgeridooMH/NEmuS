@@ -48,7 +48,7 @@ void nemus::ui::Screen::updateFPS() {
     std::chrono::duration<double> deltaTime = newTime - m_oldTime;
 
     std::string title = "NEmuS - FPS: ";
-    title += std::to_string(deltaTime.count());
+    title += std::to_string(1 / deltaTime.count());
     setWindowTitle(title.c_str());
 
     m_oldTime = newTime;

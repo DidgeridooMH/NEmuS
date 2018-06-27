@@ -49,6 +49,10 @@ namespace nemus::core {
 
             void writeByte(comp::Registers registers, unsigned int src, comp::AddressMode addr);
 
+            unsigned int readPPUByte(unsigned int address);
+
+            void writePPUByte(unsigned char data, unsigned int address);
+
             void push(unsigned int data, unsigned int &sp);
 
             void push16(unsigned int data, unsigned int &sp);

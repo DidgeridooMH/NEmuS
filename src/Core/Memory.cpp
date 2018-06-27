@@ -2,6 +2,7 @@
 #include <cstring>
 #include "Memory.h"
 #include "Mappers/NROM.h"
+#include "Mappers/MMC1.h"
 
 nemus::core::Memory::Memory(debug::Logger* logger, core::PPU *ppu, std::string filename) {
     m_logger = logger;
@@ -38,9 +39,22 @@ void nemus::core::Memory::loadRom(std::string filename) {
     m_rom = new char[size];
 
     file.read(m_rom, size);
+    
+    unsigned char mapperID = (m_rom[6] >> 4) & 0xF;
+    mapperID |= (m_rom[7] & 0xF0);
 
-    // TODO: Find and sort mappers by their ID
-    m_mapper = new NROM(m_rom);
+    switch (mapperID) {
+    case 0:
+        m_mapper = new NROM(m_rom);
+        break;
+    case 1:
+        m_mapper = new MMC1(m_rom, size);
+        break;
+    default:
+        m_logger->write("Invalid mapper id...using NROM and hoping for the best.");
+        m_mapper = new NROM(m_rom);
+        break;
+    }
 
     // TODO: Place this responsiblility in a mapper
     m_mirroring = m_rom[6] & 0x01;
@@ -188,6 +202,14 @@ void nemus::core::Memory::writeByte(comp::Registers registers, unsigned int src,
             m_logger->write("Unknown address mode!!!");
             break;
     }
+}
+
+unsigned int nemus::core::Memory::readPPUByte(unsigned int address) {
+    return m_mapper->readBytePPU(address);
+}
+
+void nemus::core::Memory::writePPUByte(unsigned char data, unsigned address) {
+    m_mapper->writeBytePPU(data, address);
 }
 
 void nemus::core::Memory::push(unsigned int data, unsigned int &sp) {

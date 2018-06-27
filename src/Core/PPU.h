@@ -2,6 +2,7 @@
 #define NEMUS_PPU_H
 
 #include "CPU.h"
+#include "Mappers/Mapper.h"
 
 #define PATTERN_TABLE_0 0x0000
 #define PATTERN_TABLE_1 0x1000
@@ -84,11 +85,7 @@ namespace nemus::core {
 
         bool m_addressLatch = false;
 
-        void initVRam();
-
         void renderPixel();
-
-        int renderSprites(int x, int y, int sliver, int pixel);
 
         void dumpOAM(std::string filename);
 
@@ -103,7 +100,7 @@ namespace nemus::core {
 
         void setCPU(nemus::core::CPU* cpu) { m_cpu = cpu; }
 
-        void setMemory(nemus::core::Memory* memory) { m_memory = memory; initVRam(); }
+        void setMemory(nemus::core::Memory* memory) { m_memory = memory; }
 
         void tick();
 
