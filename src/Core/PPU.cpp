@@ -64,9 +64,11 @@ nemus::core::PPU::~PPU() {
 }
 
 void nemus::core::PPU::renderPixel() {
+    unsigned char scanline = m_scanline + m_ppuScrollY;
+
     int x = m_cycle / 8;
-    int y = m_scanline / 8;
-    int sliver = m_scanline % 8;
+    int y = scanline / 8;
+    int sliver = scanline % 8;
     int pixel = m_cycle % 8;
     int tileNum = x + (y * 32);
 
@@ -101,16 +103,16 @@ void nemus::core::PPU::renderPixel() {
 
         switch (color) {
             case 0:
-                m_pixelBuffer[m_cycle + (m_scanline * 256)] = PPU_COLOR_BLACK;
+                m_pixelBuffer[m_cycle + (scanline * 256)] = PPU_COLOR_BLACK;
                 break;
             case 1:
-                m_pixelBuffer[m_cycle + (m_scanline * 256)] = PPU_COLOR_RED;
+                m_pixelBuffer[m_cycle + (scanline * 256)] = PPU_COLOR_RED;
                 break;
             case 2:
-                m_pixelBuffer[m_cycle + (m_scanline * 256)] = PPU_COLOR_BLUE;
+                m_pixelBuffer[m_cycle + (scanline * 256)] = PPU_COLOR_BLUE;
                 break;
             case 3:
-                m_pixelBuffer[m_cycle + (m_scanline * 256)] = PPU_COLOR_WHITE;
+                m_pixelBuffer[m_cycle + (scanline * 256)] = PPU_COLOR_WHITE;
                 break;
         }
     }
@@ -136,6 +138,11 @@ void nemus::core::PPU::tick() {
     } else {
         m_scanline = 0;
         m_cycle = 0;
+
+        for (int i = 0; i < 0x100; i++) {
+            m_spriteScanline[i] = 0;
+        }
+
         return;
     }
 
@@ -165,12 +172,23 @@ void nemus::core::PPU::evaluateSprites() {
     // Read through OAM finding first 8 sprites on scanline
     for(int i = 0; i < 0x100; i += 4) {
         const int ycheck = m_scanline - m_oam[i];
-        if(ycheck >= 0 && ycheck < 8) {
-            if (m_spriteCount < 8) {
-                m_oamEntries[m_spriteCount] = { m_oam[i], m_oam[i + 1], m_oam[i + 2], m_oam[i + 3] };
-                m_spriteCount++;
-            } else {
-                m_ppuStatus.sprite_overflow = true;
+        if (m_ppuCtrl.sprite_height) {
+            if (ycheck >= 0 && ycheck < 16) {
+                if (m_spriteCount < 8) {
+                    m_oamEntries[m_spriteCount] = { m_oam[i], m_oam[i + 1], m_oam[i + 2], m_oam[i + 3] };
+                    m_spriteCount++;
+                } else {
+                    m_ppuStatus.sprite_overflow = true;
+                }
+            }
+        } else {
+            if (ycheck >= 0 && ycheck < 8) {
+                if (m_spriteCount < 8) {
+                    m_oamEntries[m_spriteCount] = { m_oam[i], m_oam[i + 1], m_oam[i + 2], m_oam[i + 3] };
+                    m_spriteCount++;
+                } else {
+                    m_ppuStatus.sprite_overflow = true;
+                }
             }
         }
     }
@@ -179,9 +197,21 @@ void nemus::core::PPU::evaluateSprites() {
     for (unsigned int i = 0; i < m_spriteCount; i++) {
         unsigned int spriteAddr = 0;
 
-        spriteAddr = 0x1000 * m_ppuCtrl.sprite_select;
-        spriteAddr += m_oamEntries[i].index * 0x10;
-        spriteAddr += m_scanline - m_oamEntries[i].y;
+        if (m_ppuCtrl.sprite_height) {
+            spriteAddr = (m_oamEntries[i].index & 1) * 0x1000;
+            
+            spriteAddr += (m_oamEntries[i].index * 0x10);
+
+            spriteAddr += m_scanline - m_oamEntries[i].y;
+
+            if(m_scanline - m_oamEntries[i].y >= 8) {
+                spriteAddr += 8;
+            }
+        } else {
+            spriteAddr = 0x1000 * m_ppuCtrl.sprite_select;
+            spriteAddr += m_oamEntries[i].index * 0x10;
+            spriteAddr += m_scanline - m_oamEntries[i].y;
+        }
 
         unsigned int plane0 = m_memory->readPPUByte(spriteAddr);
         unsigned int plane1 = m_memory->readPPUByte(spriteAddr + 8);
@@ -192,7 +222,13 @@ void nemus::core::PPU::evaluateSprites() {
 
             unsigned int color = bit0 | (bit1 << 1);
 
-            unsigned int scanlineAddr = m_oamEntries[i].x + (-bit + 7);
+            unsigned int scanlineAddr = 0;
+
+            if (m_oamEntries[i].attributes & 0x40) {
+                scanlineAddr = m_oamEntries[i].x + bit;
+            } else {
+                scanlineAddr = m_oamEntries[i].x + (-bit + 7);
+            }
 
             if (scanlineAddr < 256) {
                 m_spriteScanline[scanlineAddr] = color;
@@ -398,6 +434,10 @@ void nemus::core::PPU::dumpOAM(std::string filename) {
 
 void nemus::core::PPU::writeOAMDMA(unsigned int data) {
     unsigned int cpuAddress = data << 8;
+
+    if(m_memory->readByte(cpuAddress) != 0xF8) {
+        int i = 0;
+    }
 
     for(int i = 0; i < 0x100; i++) {
         m_oam[m_oamAddr + i] = (unsigned char)(m_memory->readByte(cpuAddress + i));

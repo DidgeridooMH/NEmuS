@@ -2,7 +2,6 @@
 #define NEMUS_PPU_H
 
 #include "CPU.h"
-#include "Mappers/Mapper.h"
 
 #define PATTERN_TABLE_0 0x0000
 #define PATTERN_TABLE_1 0x1000
