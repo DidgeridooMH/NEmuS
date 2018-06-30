@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include "../Core/PPU.h"
+#include "../Core/Input.h"
 
 #define SCREEN_OFFSET 21
 #define SCREEN_HEIGHT 240
@@ -20,6 +21,7 @@ namespace nemus::ui {
     private:
         NES*       m_nes = nullptr;
         core::PPU* m_ppu = nullptr;
+        core::Input* m_input = nullptr;
 
         QMenu*   m_fileMenu;
         QAction* m_loadRomAction;
@@ -28,8 +30,12 @@ namespace nemus::ui {
         bool m_quit = false;
         std::chrono::system_clock::time_point m_oldTime;
 
+    protected:
+        void keyPressEvent(QKeyEvent* event) override;
+        void keyReleaseEvent(QKeyEvent* event) override;
+
     public:
-        Screen(core::PPU *ppu, NES* nes, QWidget* parent);
+        Screen(core::PPU *ppu, NES* nes, core::Input* input, QWidget* parent);
 
         void updateWindow();
 

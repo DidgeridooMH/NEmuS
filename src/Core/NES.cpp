@@ -2,7 +2,8 @@
 
 nemus::NES::NES() {
     m_ppu = new core::PPU();
-    m_screen = new ui::Screen(m_ppu, this, nullptr);
+    m_input = new core::Input();
+    m_screen = new ui::Screen(m_ppu, this, m_input, nullptr);
 }
 
 nemus::NES::~NES() {
@@ -44,7 +45,7 @@ void nemus::NES::loadGame(std::string filename) {
     m_logger = new debug::Logger();
     m_logger->disable();
 
-    m_memory = new core::Memory(m_logger, m_ppu, filename);
+    m_memory = new core::Memory(m_logger, m_ppu, m_input, filename);
 
     m_cpu = new core::CPU(m_memory, m_logger);
 

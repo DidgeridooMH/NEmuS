@@ -9,6 +9,8 @@ namespace nemus {
     private:
         core::CPU* m_cpu = nullptr;
 
+        core::Input* m_input = nullptr;
+
         core::Memory* m_memory = nullptr;
 
         core::PPU* m_ppu = nullptr;

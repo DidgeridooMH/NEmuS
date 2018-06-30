@@ -21,6 +21,7 @@ set(SOURCE
     UI/Screen.cpp
     Core/Mappers/NROM.cpp
     Core/Mappers/MMC1.cpp
+    Core/Input.cpp
     )
 
 set(HEADERS
@@ -34,6 +35,7 @@ set(HEADERS
     Core/Mappers/Mapper.h
     Core/Mappers/NROM.h
     Core/Mappers/MMC1.h
+    Core/Input.h
     )
 
 add_executable(NEmuS ${SOURCE} ${HEADERS})

@@ -9,9 +9,10 @@
 #include "Screen.h"
 #include "../Core/NES.h"
 
-nemus::ui::Screen::Screen(core::PPU *ppu, NES* nes, QWidget* parent) : QMainWindow(parent) {
+nemus::ui::Screen::Screen(core::PPU *ppu, NES* nes, core::Input* input, QWidget* parent) : QMainWindow(parent) {
     m_ppu = ppu;
     m_nes = nes;
+    m_input = input;
 
     QWidget* widget = new QWidget;
     setCentralWidget(widget);
@@ -33,6 +34,7 @@ nemus::ui::Screen::Screen(core::PPU *ppu, NES* nes, QWidget* parent) : QMainWind
     std::string title = "NEmuS Alpha";
     setWindowTitle(QString::fromStdString(title));
     resize(SCREEN_WIDTH, SCREEN_HEIGHT + SCREEN_OFFSET);
+    setFocusPolicy(Qt::ClickFocus);
     show();
 
     m_oldTime = std::chrono::system_clock::now();
@@ -41,6 +43,66 @@ nemus::ui::Screen::Screen(core::PPU *ppu, NES* nes, QWidget* parent) : QMainWind
 void nemus::ui::Screen::updateWindow() {
     QApplication::processEvents();
     update();
+}
+
+void nemus::ui::Screen::keyPressEvent(QKeyEvent* event) {
+    event->accept();
+    switch(event->key()) {
+    case Qt::Key_Z:
+        m_input->setButton(BUTTON_A);
+        break;
+    case Qt::Key_X:
+        m_input->setButton(BUTTON_B);
+        break;
+    case Qt::Key_Comma:
+        m_input->setButton(BUTTON_START);
+        break;
+    case Qt::Key_Period:
+        m_input->setButton(BUTTON_SELECT);
+        break;
+    case Qt::Key_Up:
+        m_input->setButton(BUTTON_UP);
+        break;
+    case Qt::Key_Down:
+        m_input->setButton(BUTTON_DOWN);
+        break;
+    case Qt::Key_Left:
+        m_input->setButton(BUTTON_LEFT);
+        break;
+    case Qt::Key_Right:
+        m_input->setButton(BUTTON_RIGHT);
+        break;
+    }
+}
+
+void nemus::ui::Screen::keyReleaseEvent(QKeyEvent* event) {
+    event->accept();
+    switch(event->key()) {
+    case Qt::Key_Z:
+        m_input->unsetButton(BUTTON_A);
+        break;
+    case Qt::Key_X:
+        m_input->unsetButton(BUTTON_B);
+        break;
+    case Qt::Key_Comma:
+        m_input->unsetButton(BUTTON_START);
+        break;
+    case Qt::Key_Period:
+        m_input->unsetButton(BUTTON_SELECT);
+        break;
+    case Qt::Key_Up:
+        m_input->unsetButton(BUTTON_UP);
+        break;
+    case Qt::Key_Down:
+        m_input->unsetButton(BUTTON_DOWN);
+        break;
+    case Qt::Key_Left:
+        m_input->unsetButton(BUTTON_LEFT);
+        break;
+    case Qt::Key_Right:
+        m_input->unsetButton(BUTTON_RIGHT);
+        break;
+    }
 }
 
 void nemus::ui::Screen::updateFPS() {

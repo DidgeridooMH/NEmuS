@@ -4,9 +4,10 @@
 #include "Mappers/NROM.h"
 #include "Mappers/MMC1.h"
 
-nemus::core::Memory::Memory(debug::Logger* logger, core::PPU *ppu, std::string filename) {
+nemus::core::Memory::Memory(debug::Logger* logger, core::PPU *ppu, core::Input* input, std::string filename) {
     m_logger = logger;
     m_ppu = ppu;
+    m_input = input;
 
     m_ram = new unsigned char[0x10000];
     memset(m_ram, 0, 0x10000);
@@ -103,8 +104,7 @@ unsigned int nemus::core::Memory::readByte(unsigned int address) {
     } else if(address == 0x4014) {
         return m_ppu->readPPU(0x4014);
     } else if(address == 0x4016) {
-        // TODO: Joypad needs implemented
-        return 0;
+        return m_input->read();
     } else if(address >= 0x6000) {
         return m_mapper->readByte(address);
     } else {
@@ -176,7 +176,8 @@ bool nemus::core::Memory::writeByte(unsigned char data, unsigned int address) {
         m_ppu->writePPU(data, 0x2000 + (address % 8));
     } else if(address == 0x4014) {
         m_ppu->writePPU(data, address);
-        return true;
+    } else if(address == 0x4016) {
+        m_input->write(data);
     } else if(address < 0x4020) {
         // TODO: Implement IO registers
         return true;
