@@ -25,9 +25,9 @@ namespace nemus::core {
 
         Memory* m_memory = nullptr;
 
-        unsigned int *m_pixelBuffer;
+        unsigned int *m_pixelBuffer = nullptr;
 
-        unsigned char* m_vram;
+        unsigned char* m_vram = nullptr;
 
         unsigned char m_oam[0x100];
 

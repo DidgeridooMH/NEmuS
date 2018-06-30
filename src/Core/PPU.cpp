@@ -52,8 +52,11 @@ void nemus::core::PPU::reset() {
 
     m_oamTransfer = 0;
 
+    
+    delete[] m_vram;
     m_vram = new unsigned char[0x8000];
 
+    delete[] m_pixelBuffer;
     m_pixelBuffer = new unsigned int[SCREEN_WIDTH * SCREEN_HEIGHT];
     memset(m_pixelBuffer, 0, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(unsigned int));
 }
@@ -103,16 +106,16 @@ void nemus::core::PPU::renderPixel() {
 
         switch (color) {
             case 0:
-                m_pixelBuffer[m_cycle + (scanline * 256)] = PPU_COLOR_BLACK;
+                m_pixelBuffer[m_cycle + (scanline * SCREEN_WIDTH)] = PPU_COLOR_BLACK;
                 break;
             case 1:
-                m_pixelBuffer[m_cycle + (scanline * 256)] = PPU_COLOR_RED;
+                m_pixelBuffer[m_cycle + (scanline * SCREEN_WIDTH)] = PPU_COLOR_RED;
                 break;
             case 2:
-                m_pixelBuffer[m_cycle + (scanline * 256)] = PPU_COLOR_BLUE;
+                m_pixelBuffer[m_cycle + (scanline * SCREEN_WIDTH)] = PPU_COLOR_BLUE;
                 break;
             case 3:
-                m_pixelBuffer[m_cycle + (scanline * 256)] = PPU_COLOR_WHITE;
+                m_pixelBuffer[m_cycle + (scanline * SCREEN_WIDTH)] = PPU_COLOR_WHITE;
                 break;
         }
     }
@@ -440,7 +443,7 @@ void nemus::core::PPU::writeOAMDMA(unsigned int data) {
     }
 
     for(int i = 0; i < 0x100; i++) {
-        m_oam[m_oamAddr + i] = (unsigned char)(m_memory->readByte(cpuAddress + i));
+        m_oam[(m_oamAddr + i) % 0x100] = (unsigned char)(m_memory->readByte(cpuAddress + i));
     }
 
     dumpOAM("oam.dat");

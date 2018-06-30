@@ -10,11 +10,9 @@ nemus::core::MMC1::MMC1(char* romStart, long romSize, char* savStart, long savSi
 }
 
 nemus::core::MMC1::MMC1(char* romStart, long size) {
-    m_CPUMemory = new unsigned char[romStart[4] * 0x4000 + 0x2000];
-    memset(m_CPUMemory, 0, romStart[4] * 0x4000 + 0x2000);
+    m_CPUMemory = new unsigned char[static_cast<long>(romStart[4]) * static_cast<long>(0x4000) + static_cast<long>(0x2000)];
 
     m_PPUMemory = new unsigned char[0x2000];
-    memset(m_PPUMemory, 0, 0x2000);
 
     for (unsigned int i = 0; i < romStart[4] * 0x4000; i++) {
         if (i < size) {
@@ -68,10 +66,6 @@ unsigned nemus::core::MMC1::readBytePPU(unsigned address) {
 }
 
 void nemus::core::MMC1::writeByte(unsigned char data, unsigned address) {
-    if (address >= 0xE000) {
-        int i = 0;
-    }
-
     if (address >= 0x6000 && address < 0x8000) {
         m_CPUMemory[address - 0x6000] = data;
     } else {

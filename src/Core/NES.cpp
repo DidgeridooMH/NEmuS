@@ -12,6 +12,7 @@ nemus::NES::~NES() {
     delete m_memory;
     delete m_cpu;
     delete m_screen;
+    delete m_input;
 }
 
 void nemus::NES::run() {
@@ -28,7 +29,7 @@ void nemus::NES::run() {
 
             updateCounter += cycles * 3;
 
-            if (updateCounter * m_speedmodifier > (clockRatio)) {
+            if (static_cast<long>(updateCounter) * m_speedmodifier > (clockRatio)) {
                 m_screen->updateFPS();
                 m_screen->updateWindow();
                 updateCounter = 0;

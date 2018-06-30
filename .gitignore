@@ -36,3 +36,7 @@ include/
 lib/
 
 .vs/
+/NEmuS.vcxproj
+/NEmuS.vcxproj.filters
+/NEmuS.vcxproj.user
+/Debug
