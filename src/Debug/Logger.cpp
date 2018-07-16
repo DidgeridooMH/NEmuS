@@ -1,4 +1,5 @@
 #include <iomanip>
+#include <sstream>
 #include "Logger.h"
 
 nemus::debug::Logger::Logger() {
@@ -16,7 +17,11 @@ void nemus::debug::Logger::write(std::string message) {
         return;
     }
 
-    m_fileOut << message << std::endl;
+    std::stringstream stringBuilder;
+
+    stringBuilder << message << std::endl;
+
+    m_fileOut.write(stringBuilder.str().c_str(), stringBuilder.str().size());
 }
 
 void nemus::debug::Logger::writeError(std::string message, unsigned int address) {
@@ -24,7 +29,11 @@ void nemus::debug::Logger::writeError(std::string message, unsigned int address)
         return;
     }
 
-    m_fileOut << "ERROR at $" << std::hex << address << std::dec << ": " << message << std::endl;
+    std::stringstream stringBuilder;
+
+    stringBuilder << "ERROR at $" << std::hex << address << std::dec << ": " << message << std::endl;
+
+    m_fileOut.write(stringBuilder.str().c_str(), stringBuilder.str().size());
 }
 
 void nemus::debug::Logger::writeInstruction(comp::Registers registers,
@@ -35,7 +44,9 @@ void nemus::debug::Logger::writeInstruction(comp::Registers registers,
         return;
     }
 
-    m_fileOut << std::hex << std::uppercase
+    std::stringstream stringBuilder;
+
+    stringBuilder << std::hex << std::uppercase
               << std::setfill('0') << std::setw(4) << registers.pc
               << "\tA:" << std::setfill('0') << std::setw(2) << registers.a
               << " X:"  << std::setfill('0') << std::setw(2) << registers.x
@@ -47,31 +58,33 @@ void nemus::debug::Logger::writeInstruction(comp::Registers registers,
 
     switch(mode) {
         case comp::ADDR_MODE_IMMEDIATE:
-            m_fileOut << "IMMEDIATE MODE" << std::endl;
+            stringBuilder << "IMMEDIATE MODE" << std::endl;
             break;
         case comp::ADDR_MODE_ZERO_PAGE:
-            m_fileOut << "ZEROPAGE MODE" << std::endl;
+            stringBuilder << "ZEROPAGE MODE" << std::endl;
             break;
         case comp::ADDR_MODE_ZERO_PAGE_X:
-            m_fileOut << "ZEROPAGE INDEXED X MODE" << std::endl;
+            stringBuilder << "ZEROPAGE INDEXED X MODE" << std::endl;
             break;
         case comp::ADDR_MODE_ABSOLUTE:
-            m_fileOut << "ABSOLUTE MODE" << std::endl;
+            stringBuilder << "ABSOLUTE MODE" << std::endl;
             break;
         case comp::ADDR_MODE_ABSOLUTE_X:
-            m_fileOut << "ABSOLUTE MODE X" << std::endl;
+            stringBuilder << "ABSOLUTE MODE X" << std::endl;
             break;
         case comp::ADDR_MODE_ABSOLUTE_Y:
-            m_fileOut << "ABSOLUTE MODE Y" << std::endl;
+            stringBuilder << "ABSOLUTE MODE Y" << std::endl;
             break;
         case comp::ADDR_MODE_INDIRECT_X:
-            m_fileOut << "INDIRECT X" << std::endl;
+            stringBuilder << "INDIRECT X" << std::endl;
             break;
         case comp::ADDR_MODE_INDIRECT_Y:
-            m_fileOut << "INDIRECT Y" << std::endl;
+            stringBuilder << "INDIRECT Y" << std::endl;
             break;
         default:
-            m_fileOut << "ADDR UNKNOWN" << std::endl;
+            stringBuilder << "ADDR UNKNOWN" << std::endl;
             break;
     }
+    
+    m_fileOut.write(stringBuilder.str().c_str(), stringBuilder.str().size());
 }

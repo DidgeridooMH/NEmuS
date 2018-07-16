@@ -154,5 +154,8 @@ void nemus::ui::Screen::paintEvent(QPaintEvent *event) {
 
 void nemus::ui::Screen::openRom() {
     QString file_name = QFileDialog::getOpenFileName(this, tr("Open Rom"), "", tr("ROM Files (*.nes)"));
-    m_nes->loadGame(file_name.toStdString());
+    
+    if(file_name.size() > 0) {
+        m_nes->loadGame(file_name.toStdString());
+    }
 }

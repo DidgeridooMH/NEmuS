@@ -101,6 +101,11 @@ void nemus::core::PPU::renderPixel() {
         if(m_ppuMask.sprite_enable) {
             if(m_spriteScanline[m_cycle] > 0) {
                 color = m_spriteScanline[m_cycle];
+                for(unsigned int sprite0Pixel : m_sprite0Pixels) {
+                    if(m_cycle == sprite0Pixel) {
+                        m_ppuStatus.s0_hit = true;
+                    }
+                }
             }
         }
 
@@ -123,13 +128,7 @@ void nemus::core::PPU::renderPixel() {
 
 void nemus::core::PPU::tick() {
     if(m_scanline < 240) {
-
-        if(m_cycle == 0) {
-            m_ppuStatus.vblank = false;
-        }
-
         renderPixel();
-
     } else if(m_scanline < 261) {
         if(m_cycle == 1) {
             if(m_ppuCtrl.nmi) {
@@ -141,6 +140,10 @@ void nemus::core::PPU::tick() {
     } else {
         m_scanline = 0;
         m_cycle = 0;
+        m_ppuStatus.s0_hit = false;
+        m_ppuStatus.vblank = false;
+
+        m_sprite0Pixels.clear();
 
         for (int i = 0; i < 0x100; i++) {
             m_spriteScanline[i] = 0;
@@ -161,7 +164,7 @@ void nemus::core::PPU::tick() {
 void nemus::core::PPU::evaluateSprites() {
     // Clear list of sprites
     for(int i = 0; i < 8; i++) {
-        m_oamEntries[i] = { 0, 0, 0, 0 };
+        m_oamEntries[i] = { 0xFF, 0, 0, 0, 0 };
     }
 
     m_spriteCount = 0;
@@ -175,23 +178,12 @@ void nemus::core::PPU::evaluateSprites() {
     // Read through OAM finding first 8 sprites on scanline
     for(int i = 0; i < 0x100; i += 4) {
         const int ycheck = m_scanline - m_oam[i];
-        if (m_ppuCtrl.sprite_height) {
-            if (ycheck >= 0 && ycheck < 16) {
-                if (m_spriteCount < 8) {
-                    m_oamEntries[m_spriteCount] = { m_oam[i], m_oam[i + 1], m_oam[i + 2], m_oam[i + 3] };
-                    m_spriteCount++;
-                } else {
-                    m_ppuStatus.sprite_overflow = true;
-                }
-            }
-        } else {
-            if (ycheck >= 0 && ycheck < 8) {
-                if (m_spriteCount < 8) {
-                    m_oamEntries[m_spriteCount] = { m_oam[i], m_oam[i + 1], m_oam[i + 2], m_oam[i + 3] };
-                    m_spriteCount++;
-                } else {
-                    m_ppuStatus.sprite_overflow = true;
-                }
+        if (ycheck >= 0 && ycheck < 8 + (8 * m_ppuCtrl.sprite_height)) {
+            if (m_spriteCount < 8) {
+                m_oamEntries[m_spriteCount] = { static_cast<unsigned int>(i) % 4, m_oam[i], m_oam[i + 1], m_oam[i + 2], m_oam[i + 3] };
+                m_spriteCount++;
+            } else {
+                m_ppuStatus.sprite_overflow = true;
             }
         }
     }
@@ -234,6 +226,9 @@ void nemus::core::PPU::evaluateSprites() {
             }
 
             if (scanlineAddr < 256) {
+                if(m_oamEntries[i].id == 0 && color != 0) {
+                    m_sprite0Pixels.push_back(scanlineAddr);
+                }
                 m_spriteScanline[scanlineAddr] = color;
             }
         }

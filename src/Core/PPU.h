@@ -1,6 +1,7 @@
 #ifndef NEMUS_PPU_H
 #define NEMUS_PPU_H
 
+#include <vector>
 #include "CPU.h"
 
 #define PATTERN_TABLE_0 0x0000
@@ -13,6 +14,7 @@
 
 namespace nemus::core {
     struct OAMEntry {
+        unsigned int id;
         unsigned int y;
         unsigned int index;
         unsigned int attributes;
@@ -34,6 +36,8 @@ namespace nemus::core {
         OAMEntry m_oamEntries[8];
         unsigned int m_spriteCount;
         unsigned char m_spriteScanline[0x100];
+
+        std::vector<unsigned int> m_sprite0Pixels;
 
         unsigned int m_cycle = 0;
 

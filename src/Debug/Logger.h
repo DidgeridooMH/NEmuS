@@ -9,13 +9,13 @@ namespace nemus::debug {
     class Logger {
     private:
         std::ofstream m_fileOut;
-        bool m_enable = true;
+        bool m_enable = false;
 
     public:
         Logger();
         ~Logger();
 
-        void disable() { m_enable = false; }
+        void enable() { m_enable = true; }
 
         void write(std::string message);
         void writeError(std::string message, unsigned int address);
