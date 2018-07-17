@@ -2,6 +2,7 @@
 #define NEMUS_SCREEN_H
 
 #include <QMainWindow>
+#include "SettingsState.h"
 #include "../Core/PPU.h"
 #include "../Core/Input.h"
 
@@ -25,10 +26,15 @@ namespace nemus::ui {
 
         QMenu*   m_fileMenu;
         QAction* m_loadRomAction;
+        QAction* m_settingsAction;
         QAction* m_exitAction;
+
+        SettingsState* m_state;
 
         bool m_quit = false;
         std::chrono::system_clock::time_point m_oldTime;
+
+        void applySettings();
 
     protected:
         void keyPressEvent(QKeyEvent* event) override;
@@ -57,6 +63,7 @@ namespace nemus::ui {
 
     public slots:
         void openRom();
+        void openSettings();
     };
 }
 

@@ -8,11 +8,14 @@
 #include <QVBoxLayout>
 #include "Screen.h"
 #include "../Core/NES.h"
+#include "Settings.h"
 
 nemus::ui::Screen::Screen(core::PPU *ppu, NES* nes, core::Input* input, QWidget* parent) : QMainWindow(parent) {
     m_ppu = ppu;
     m_nes = nes;
     m_input = input;
+
+    m_state = new SettingsState(SCALE_1X);
 
     QWidget* widget = new QWidget;
     setCentralWidget(widget);
@@ -33,7 +36,9 @@ nemus::ui::Screen::Screen(core::PPU *ppu, NES* nes, core::Input* input, QWidget*
 
     std::string title = "NEmuS Alpha";
     setWindowTitle(QString::fromStdString(title));
-    resize(SCREEN_WIDTH, SCREEN_HEIGHT + SCREEN_OFFSET);
+    
+    applySettings();
+
     setFocusPolicy(Qt::ClickFocus);
     show();
 
@@ -110,21 +115,25 @@ void nemus::ui::Screen::updateFPS() {
     std::chrono::duration<double> deltaTime = newTime - m_oldTime;
 
     std::string title = "NEmuS - FPS: ";
-    title += std::to_string(1 / deltaTime.count());
+    title += std::to_string(static_cast<int>((1 / deltaTime.count())));
     setWindowTitle(title.c_str());
 
     m_oldTime = newTime;
 }
 
 void nemus::ui::Screen::create_menu() {
-    m_loadRomAction = new QAction(tr("&Load ROM... (Fast)"), this);
+    m_loadRomAction = new QAction(tr("&Load ROM..."), this);
     connect(m_loadRomAction, &QAction::triggered, this, &Screen::openRom);
+
+    m_settingsAction = new QAction(tr("Settings..."), this);
+    connect(m_settingsAction,  &QAction::triggered, this, &Screen::openSettings);
 
     m_exitAction = new QAction(tr("&Exit"), this);
     connect(m_exitAction, &QAction::triggered, this, &QWidget::close);
 
     m_fileMenu = menuBar()->addMenu(tr("&File"));
     m_fileMenu->addAction(m_loadRomAction);
+    m_fileMenu->addAction(m_settingsAction);
     m_fileMenu->addAction(m_exitAction);
 }
 
@@ -137,6 +146,7 @@ void nemus::ui::Screen::closeEvent(QCloseEvent *event) {
 void nemus::ui::Screen::contextMenuEvent(QContextMenuEvent* event) {
     QMenu menu(this);
     menu.addAction(m_loadRomAction);
+    menu.addAction(m_settingsAction);
     menu.addAction(m_exitAction);
     menu.exec(event->globalPos());
 }
@@ -148,8 +158,21 @@ void nemus::ui::Screen::paintEvent(QPaintEvent *event) {
     painter.fillRect(rect(), Qt::black);
 
     QImage image((unsigned char*)m_ppu->getPixels(), SCREEN_WIDTH, SCREEN_HEIGHT, QImage::Format_ARGB32);
-
-    painter.drawPixmap(0, SCREEN_OFFSET, QPixmap::fromImage(image));
+    
+    switch(m_state->getScale()) {
+    case SCALE_1X:
+        painter.drawPixmap(0, SCREEN_OFFSET, QPixmap::fromImage(image));
+        break;
+    case SCALE_2X:
+        painter.drawPixmap(0, SCREEN_OFFSET, QPixmap::fromImage(image).scaled(SCREEN_WIDTH * 2, SCREEN_HEIGHT * 2));
+        break;
+    case SCALE_3X:
+        painter.drawPixmap(0, SCREEN_OFFSET, QPixmap::fromImage(image).scaled(SCREEN_WIDTH * 3, SCREEN_HEIGHT * 3));
+        break;
+    case SCALE_4X:
+        painter.drawPixmap(0, SCREEN_OFFSET, QPixmap::fromImage(image).scaled(SCREEN_WIDTH * 4, SCREEN_HEIGHT * 4));
+        break;
+    }
 }
 
 void nemus::ui::Screen::openRom() {
@@ -158,4 +181,33 @@ void nemus::ui::Screen::openRom() {
     if(file_name.size() > 0) {
         m_nes->loadGame(file_name.toStdString());
     }
+}
+
+void nemus::ui::Screen::openSettings() {
+    Settings dialog(this, m_state);
+
+    dialog.exec();
+
+    applySettings();
+}
+
+void nemus::ui::Screen::applySettings() {
+    // TODO: It takes two dialog boxes to apply and doesn't have an accept button
+
+    switch(m_state->getScale()) {
+    case SCALE_1X:
+        resize(SCREEN_WIDTH, SCREEN_HEIGHT + SCREEN_OFFSET);
+        break;
+    case SCALE_2X:
+        resize(SCREEN_WIDTH * 2, SCREEN_HEIGHT * 2 + SCREEN_OFFSET);
+        break;
+    case SCALE_3X:
+        resize(SCREEN_WIDTH * 3, SCREEN_HEIGHT * 3 + SCREEN_OFFSET);
+        break;
+    case SCALE_4X:
+        resize(SCREEN_WIDTH * 4, SCREEN_HEIGHT * 4 + SCREEN_OFFSET);
+        break;
+    }
+
+    this->update();
 }

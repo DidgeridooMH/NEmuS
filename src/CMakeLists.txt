@@ -19,6 +19,7 @@ set(SOURCE
     Debug/Logger.cpp
     Core/PPU.cpp
     UI/Screen.cpp
+    UI/Settings.cpp
     Core/Mappers/NROM.cpp
     Core/Mappers/MMC1.cpp
     Core/Input.cpp
@@ -32,6 +33,8 @@ set(HEADERS
     Debug/Logger.h
     Core/PPU.h
     UI/Screen.h
+    UI/Settings.h
+	UI/SettingsState.h
     Core/Mappers/Mapper.h
     Core/Mappers/NROM.h
     Core/Mappers/MMC1.h
