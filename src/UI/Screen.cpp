@@ -192,8 +192,6 @@ void nemus::ui::Screen::openSettings() {
 }
 
 void nemus::ui::Screen::applySettings() {
-    // TODO: It takes two dialog boxes to apply and doesn't have an accept button
-
     switch(m_state->getScale()) {
     case SCALE_1X:
         resize(SCREEN_WIDTH, SCREEN_HEIGHT + SCREEN_OFFSET);
