@@ -29,9 +29,10 @@ void nemus::NES::run() {
 
             updateCounter += cycles * 3;
 
-            if (static_cast<long>(updateCounter) * m_speedmodifier > (clockRatio)) {
+            if (static_cast<long>(updateCounter) > (clockRatio)) {
                 m_screen->updateFPS();
                 m_screen->updateWindow();
+
                 updateCounter = 0;
             }
         } else {

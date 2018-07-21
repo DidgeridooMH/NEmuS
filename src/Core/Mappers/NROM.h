@@ -11,6 +11,8 @@ namespace nemus::core {
 
         unsigned char* m_fixedPPUMemory;
 
+        int m_mirroring;
+
     public:
         NROM(char* romStart);
         ~NROM();
@@ -22,6 +24,8 @@ namespace nemus::core {
         void writeByte(unsigned char data, unsigned int address) override;
 
         void writeBytePPU(unsigned char data, unsigned int address) override;
+
+        int getMirroring() override { return m_mirroring; }
     };
 
 }

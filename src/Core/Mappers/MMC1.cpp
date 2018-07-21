@@ -14,6 +14,11 @@ nemus::core::MMC1::MMC1(char* romStart, long size) {
 
     m_PPUMemory = new unsigned char[0x2000];
 
+    m_tableA = new unsigned char[0x400];
+    m_tableB = new unsigned char[0x400];
+    m_tableC = new unsigned char[0x400];
+    m_tableD = new unsigned char[0x400];
+
     for (unsigned int i = 0; i < romStart[4] * 0x4000; i++) {
         if (i < size) {
             m_CPUMemory[i + 0x2000] = romStart[i + 0x10];
@@ -62,7 +67,11 @@ unsigned nemus::core::MMC1::readByte(unsigned address) {
 }
 
 unsigned nemus::core::MMC1::readBytePPU(unsigned address) {
-    return m_PPUMemory[address];
+    if(address < 0x2000) {
+        return m_PPUMemory[address];
+    }
+
+    return readNametable(address);
 }
 
 void nemus::core::MMC1::writeByte(unsigned char data, unsigned address) {
@@ -76,6 +85,56 @@ void nemus::core::MMC1::writeByte(unsigned char data, unsigned address) {
 void nemus::core::MMC1::writeBytePPU(unsigned char data, unsigned address) {
     if (address < 0x2000) {
         m_PPUMemory[address] = data;
+    } else {
+        writeNametable(data, address);
+    }
+}
+
+unsigned char nemus::core::MMC1::readNametable(unsigned address) {
+    address -= 0x2000;
+    switch(m_control.mirroring) {
+    case MIRROR_VERTICAL:
+        if(address < 0x800) {
+            return m_tableA[address % 0x400];
+        } else {
+            return m_tableB[address % 0x400];
+        }
+        break;
+    case MIRROR_HORIZONTAL:
+        address %= 0x800;
+        if(address < 0x400) {
+            return m_tableA[address];
+        } else {
+            return m_tableB[address % 0x400];
+        }
+        break;
+    default:
+        // TODO: Implement the rest
+        break;
+    }
+}
+
+void nemus::core::MMC1::writeNametable(unsigned char data, unsigned address) {
+    address -= 0x2000;
+    switch(m_control.mirroring) {
+    case MIRROR_HORIZONTAL:
+        if(address < 0x800) {
+            m_tableA[address % 0x400] = data;
+        } else {
+            m_tableB[address % 0x400] = data;
+        }
+        break;
+    case MIRROR_VERTICAL:
+        address %= 0x800;
+        if(address < 0x400) {
+            m_tableA[address] = data;
+        } else {
+            m_tableB[address % 0x400] = data;
+        }
+        break;
+    default:
+        // TODO: Implement the rest
+        break;
     }
 }
 
@@ -118,7 +177,20 @@ void nemus::core::MMC1::adjustShiftRegister(unsigned char data, unsigned address
 }
 
 void nemus::core::MMC1::writeControl() {
-    m_control.mirroring = m_shiftRegister & 3;
+    switch(m_shiftRegister & 3) {
+    case 0:
+        m_control.mirroring = MIRROR_OS_LOWER;
+        break;
+    case 1:
+        m_control.mirroring = MIRROR_OS_UPPER;
+        break;
+    case 2:
+        m_control.mirroring = MIRROR_HORIZONTAL;
+        break;
+    case 3:
+        m_control.mirroring = MIRROR_VERTICAL;
+        break;
+    }
 
     m_control.prg_mode = (m_shiftRegister >> 2) & 3;
 

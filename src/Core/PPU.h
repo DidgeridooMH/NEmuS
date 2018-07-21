@@ -27,7 +27,8 @@ namespace nemus::core {
 
         Memory* m_memory = nullptr;
 
-        unsigned int *m_pixelBuffer = nullptr;
+        unsigned int *m_frontBuffer = nullptr;
+        unsigned int *m_backBuffer = nullptr;
 
         unsigned char* m_vram = nullptr;
 
@@ -94,6 +95,8 @@ namespace nemus::core {
 
         void evaluateSprites();
 
+        int getNameTableAddress(unsigned cycle);
+
     public:
         PPU();
 
@@ -107,7 +110,7 @@ namespace nemus::core {
 
         void tick();
 
-        unsigned int* getPixels() { return m_pixelBuffer; };
+        unsigned int* getPixels() { return m_frontBuffer; };
 
         void writePPU(unsigned int data, unsigned int address);
 

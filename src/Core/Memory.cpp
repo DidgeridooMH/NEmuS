@@ -66,9 +66,6 @@ void nemus::core::Memory::loadRom(std::string filename) {
         m_mapper = new NROM(m_rom);
         break;
     }
-
-    // TODO: Place this responsiblility in a mapper
-    m_mirroring = m_rom[6] & 0x01;
 }
 
 nemus::core::FileInfo nemus::core::Memory::loadSaveFile(std::string filename) {

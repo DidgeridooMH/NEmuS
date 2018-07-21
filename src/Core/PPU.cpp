@@ -56,28 +56,47 @@ void nemus::core::PPU::reset() {
     delete[] m_vram;
     m_vram = new unsigned char[0x8000];
 
-    delete[] m_pixelBuffer;
-    m_pixelBuffer = new unsigned int[SCREEN_WIDTH * SCREEN_HEIGHT];
-    memset(m_pixelBuffer, 0, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(unsigned int));
+    delete[] m_backBuffer;
+    m_backBuffer = new unsigned int[SCREEN_WIDTH * SCREEN_HEIGHT];
+    memset(m_backBuffer, 0, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(unsigned int));
+    
+    m_frontBuffer = new unsigned int[SCREEN_WIDTH * SCREEN_HEIGHT];
+    memset(m_frontBuffer, 0, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(unsigned int));
 }
 
 nemus::core::PPU::~PPU() {
-    delete[] m_pixelBuffer;
+    delete[] m_backBuffer;
+    delete[] m_frontBuffer;
     delete[] m_vram;
+}
+
+int nemus::core::PPU::getNameTableAddress(unsigned int cycle) {
+    int address = 0x2000;
+
+    int offset = 0x400 * m_ppuCtrl.name_select;
+
+    if(cycle > 0x100) {
+        offset += 0x400;
+        offset &= 0xFFF;
+    }
+
+    return address + offset;
 }
 
 void nemus::core::PPU::renderPixel() {
     unsigned char scanline = m_scanline + m_ppuScrollY;
 
-    int x = m_cycle / 8;
+    unsigned int cycle = m_cycle + m_ppuScrollX;
+
+    int x = (cycle % 256) / 8;
     int y = scanline / 8;
     int sliver = scanline % 8;
-    int pixel = m_cycle % 8;
+    int pixel = cycle % 8;
     int tileNum = x + (y * 32);
 
-    int nameTableAddress = 0x2000 + (0x400 * m_ppuCtrl.name_select);
+    int nameTableAddress = getNameTableAddress(cycle);
 
-    int tileID = m_vram[nameTableAddress + tileNum];
+    int tileID = m_memory->readPPUByte(nameTableAddress + tileNum);
 
     int plane0 = 0, plane1 = 0;
 
@@ -90,41 +109,47 @@ void nemus::core::PPU::renderPixel() {
             plane1 = m_memory->readPPUByte(PATTERN_TABLE_0 + (tileID * 0x10) + sliver + 0x08);
         }
 
-        int color = (plane0 >> (7 - pixel)) & 0x1;
+        int color = 0;
 
-        if (pixel < 7) {
-            color |= (plane1 >> (6 - pixel)) & 0x2;
-        } else {
-            color |= (plane1 << 1) & 0x2;
+        if(m_ppuMask.bg_enable) {
+            color = (plane0 >> (7 - pixel)) & 0x1;
+
+            if (pixel < 7) {
+                color |= (plane1 >> (6 - pixel)) & 0x2;
+            } else {
+                color |= (plane1 << 1) & 0x2;
+            }
         }
 
         if(m_ppuMask.sprite_enable) {
             if(m_spriteScanline[m_cycle] > 0) {
-                color = m_spriteScanline[m_cycle];
                 for(unsigned int sprite0Pixel : m_sprite0Pixels) {
                     if(m_cycle == sprite0Pixel) {
                         m_ppuStatus.s0_hit = true;
                     }
                 }
+
+                color = m_spriteScanline[m_cycle];
+                
             }
         }
 
         switch (color) {
             case 0:
-                m_pixelBuffer[m_cycle + (scanline * SCREEN_WIDTH)] = PPU_COLOR_BLACK;
+                m_backBuffer[m_cycle + (scanline * SCREEN_WIDTH)] = PPU_COLOR_BLACK;
                 break;
             case 1:
-                m_pixelBuffer[m_cycle + (scanline * SCREEN_WIDTH)] = PPU_COLOR_RED;
+                m_backBuffer[m_cycle + (scanline * SCREEN_WIDTH)] = PPU_COLOR_RED;
                 break;
             case 2:
-                m_pixelBuffer[m_cycle + (scanline * SCREEN_WIDTH)] = PPU_COLOR_BLUE;
+                m_backBuffer[m_cycle + (scanline * SCREEN_WIDTH)] = PPU_COLOR_BLUE;
                 break;
             case 3:
-                m_pixelBuffer[m_cycle + (scanline * SCREEN_WIDTH)] = PPU_COLOR_WHITE;
+                m_backBuffer[m_cycle + (scanline * SCREEN_WIDTH)] = PPU_COLOR_WHITE;
                 break;
         }
     }
-}
+} 
 
 void nemus::core::PPU::tick() {
     if(m_scanline < 240) {
@@ -148,6 +173,10 @@ void nemus::core::PPU::tick() {
         for (int i = 0; i < 0x100; i++) {
             m_spriteScanline[i] = 0;
         }
+
+        unsigned int* tmp = m_backBuffer;
+        m_backBuffer = m_frontBuffer;
+        m_frontBuffer = tmp;
 
         return;
     }
@@ -376,9 +405,9 @@ unsigned int nemus::core::PPU::readPPUData() {
 void nemus::core::PPU::writePPUScroll(unsigned int data) {
     if(!m_addressLatch) {
         m_ppuTmpAddr &= ~0x1f;
-        m_ppuTmpAddr |= (data >> 3) & 0x1f;
+        m_ppuTmpAddr |= (data >> 3);
 
-        m_ppuScrollX = data & 0x7;
+        m_ppuScrollX = data;
 
         m_addressLatch = true;
     } else {
@@ -386,25 +415,17 @@ void nemus::core::PPU::writePPUScroll(unsigned int data) {
         m_ppuTmpAddr |= ((data & 0x7) << 12) |
                         ((data & 0xF8) << 2);
 
+        m_ppuScrollY = data & 7;
+
         m_addressLatch = false;
     }
 }
 
 void nemus::core::PPU::writeVRAM(unsigned char data, int address) {
-    if (address >= 0x2000) {
+    if (address >= 0x3000) {
         m_vram[address] = data;
     } else {
         m_memory->writePPUByte(data, address);
-    }
-
-    if(m_memory->getMirroring()) {
-        if(address >= 0x2000 && address < 0x2800) {
-            m_vram[address + 0x800] = data;
-        } else if(address >= 0x2800 && address < 0x3000) {
-            m_vram[address - 0x800] = data;
-        }
-    } else {
-        // TODO: Horizontal mirroring
     }
 }
 

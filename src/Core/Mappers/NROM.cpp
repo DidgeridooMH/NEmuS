@@ -15,6 +15,8 @@ nemus::core::NROM::NROM(char* romStart) {
     for (unsigned int i = 0; i < 0x2000; i++) {
         m_fixedPPUMemory[i] = romStart[0x8000 + i + 0x10];
     }
+
+    m_mirroring = romStart[6] & 1;
 }
 
 nemus::core::NROM::~NROM() {

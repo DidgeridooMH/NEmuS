@@ -4,6 +4,7 @@
 #include "Memory.h"
 #include "CPU.h"
 #include "../UI/Screen.h"
+
 namespace nemus {
     class NES {
     private:
@@ -18,8 +19,6 @@ namespace nemus {
         debug::Logger* m_logger = nullptr;
 
         ui::Screen* m_screen = nullptr;
-
-        long m_speedmodifier = 1.0;
 
         bool m_gameLoaded = false;
 

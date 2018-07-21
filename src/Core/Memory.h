@@ -29,9 +29,6 @@ namespace nemus::core {
 
         char *m_rom;
 
-        // TODO: Move to mapper
-        char m_mirroring;
-
         FileInfo loadSaveFile(std::string filename);
 
     public:
@@ -43,8 +40,7 @@ namespace nemus::core {
 
         char readRom(int address) { return m_rom[address]; }
 
-        // TODO: Move to mapper
-        char getMirroring() { return m_mirroring; }
+        int getMirroring() { return m_mapper->getMirroring(); }
 
         unsigned int readByte(unsigned int address);
 
