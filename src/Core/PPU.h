@@ -92,7 +92,7 @@ namespace nemus::core {
 
         void evaluateSprites();
 
-        int getNameTableAddress(unsigned cycle);
+        int getNameTableAddress(unsigned cycle, unsigned scanline);
 
     public:
         PPU();

@@ -6,8 +6,16 @@
 
 nemus::core::PPU::PPU() {
     m_backBuffer = new unsigned int[SCREEN_WIDTH * SCREEN_HEIGHT];
+
+    for(int i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; i++) {
+        m_backBuffer[i] = 0;
+    }
     
     m_frontBuffer = new unsigned int[SCREEN_WIDTH * SCREEN_HEIGHT];
+    
+    for(int i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; i++) {
+        m_frontBuffer[i] = 0;
+    }
 
     reset();
 }
@@ -62,31 +70,36 @@ nemus::core::PPU::~PPU() {
     delete[] m_frontBuffer;
 }
 
-int nemus::core::PPU::getNameTableAddress(unsigned int cycle) {
+int nemus::core::PPU::getNameTableAddress(unsigned int cycle, unsigned int scanline) {
     int address = 0x2000;
 
     int offset = 0x400 * m_ppuCtrl.name_select;
 
     if(cycle > 0xFF) {
         offset += 0x400;
-        offset &= 0xFFF;
     }
+
+    if(scanline > 240) {
+        offset += 0x800;
+    }
+
+    offset &= 0xFFF;
 
     return address + offset;
 }
 
 void nemus::core::PPU::renderPixel() {
-    unsigned char scanline = m_scanline;
+    unsigned int scanline = m_scanline + m_ppuScrollY;
 
     unsigned int cycle = m_cycle + m_ppuScrollX;
 
     int x = (cycle % 256) / 8;
-    int y = scanline / 8;
+    int y = (scanline % 240) / 8;
     int sliver = scanline % 8;
     int pixel = cycle % 8;
     int tileNum = x + (y * 32);
 
-    int nameTableAddress = getNameTableAddress(cycle);
+    int nameTableAddress = getNameTableAddress(cycle, scanline);
 
     int tileID = m_memory->readPPUByte(nameTableAddress + tileNum);
 
@@ -126,18 +139,21 @@ void nemus::core::PPU::renderPixel() {
             }
         }
 
+        unsigned int videoAddress = m_cycle + (m_scanline * SCREEN_WIDTH);
+        videoAddress %= SCREEN_WIDTH * SCREEN_HEIGHT;
+
         switch (color) {
             case 0:
-                m_backBuffer[m_cycle + (scanline * SCREEN_WIDTH)] = PPU_COLOR_BLACK;
+                m_backBuffer[videoAddress] = PPU_COLOR_BLACK;
                 break;
             case 1:
-                m_backBuffer[m_cycle + (scanline * SCREEN_WIDTH)] = PPU_COLOR_RED;
+                m_backBuffer[videoAddress] = PPU_COLOR_RED;
                 break;
             case 2:
-                m_backBuffer[m_cycle + (scanline * SCREEN_WIDTH)] = PPU_COLOR_BLUE;
+                m_backBuffer[videoAddress] = PPU_COLOR_BLUE;
                 break;
             case 3:
-                m_backBuffer[m_cycle + (scanline * SCREEN_WIDTH)] = PPU_COLOR_WHITE;
+                m_backBuffer[videoAddress] = PPU_COLOR_WHITE;
                 break;
         }
     }
@@ -398,6 +414,7 @@ unsigned int nemus::core::PPU::readPPUData() {
     return ret;
 }
 
+#pragma optimize("", off)
 void nemus::core::PPU::writePPUScroll(unsigned int data) {
     if(!m_addressLatch) {
         m_ppuTmpAddr &= ~0x1f;
@@ -411,7 +428,7 @@ void nemus::core::PPU::writePPUScroll(unsigned int data) {
         m_ppuTmpAddr |= ((data & 0x7) << 12) |
                         ((data & 0xF8) << 2);
 
-        m_ppuScrollY = data & 7;
+        m_ppuScrollY = data;
 
         m_addressLatch = false;
     }
