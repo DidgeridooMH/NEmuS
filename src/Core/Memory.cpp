@@ -10,7 +10,6 @@ nemus::core::Memory::Memory(debug::Logger* logger, core::PPU *ppu, core::Input* 
     m_input = input;
 
     m_ram = new unsigned char[0x10000];
-    memset(m_ram, 0, 0x10000);
 
     loadRom(filename);
 

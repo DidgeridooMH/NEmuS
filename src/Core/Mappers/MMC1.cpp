@@ -12,7 +12,7 @@ nemus::core::MMC1::MMC1(char* romStart, long romSize, char* savStart, long savSi
 nemus::core::MMC1::MMC1(char* romStart, long size) {
     m_CPUMemory = new unsigned char[static_cast<long>(romStart[4]) * static_cast<long>(0x4000) + static_cast<long>(0x2000)];
 
-    m_PPUMemory = new unsigned char[0x2000];
+    m_PPUMemory = new unsigned char[0x8000];
 
     m_tableA = new unsigned char[0x400];
     m_tableB = new unsigned char[0x400];
@@ -20,7 +20,7 @@ nemus::core::MMC1::MMC1(char* romStart, long size) {
     m_tableD = new unsigned char[0x400];
 
     for (unsigned int i = 0; i < romStart[4] * 0x4000; i++) {
-        if (i < size) {
+        if (i + 0x10 < size) {
             m_CPUMemory[i + 0x2000] = romStart[i + 0x10];
         }
     }
@@ -29,8 +29,6 @@ nemus::core::MMC1::MMC1(char* romStart, long size) {
         for (unsigned int i = 0; i < 0x2000; i++) {
             m_PPUMemory[i] = romStart[romStart[4] * 0x4000 + i + 0x10];
         }
-    } else {
-        // Implement CHR Ram checking
     }
 
     m_prgBank0 = 0;
@@ -52,9 +50,64 @@ nemus::core::MMC1::MMC1(char* romStart, long size) {
 nemus::core::MMC1::~MMC1() {
     delete[] m_CPUMemory;
     delete[] m_PPUMemory;
+
+    delete[] m_tableA;
+    delete[] m_tableB;
+    delete[] m_tableC;
+    delete[] m_tableD;
 }
 
-unsigned nemus::core::MMC1::readByte(unsigned address) {
+unsigned nemus::core::MMC1::getMirroringTable(unsigned int address) {
+    unsigned int nametableID = 0;
+
+    switch(m_control.mirroring) {
+        case MIRROR_HORIZONTAL:
+            if(address >= 0x2000 && address < 0x2800) {
+                nametableID = 0;
+            } else {
+                nametableID = 1;
+            }
+            break;
+        case MIRROR_VERTICAL:
+            if((address >= 0x2000 && address < 0x2400) 
+                || (address >= 0x2800 && address < 0x2C00)) {
+                nametableID = 0;
+            } else {
+                nametableID = 1;
+            }
+            break;
+        default:
+            // This will cause visual glitches but won't crash the program.
+            nametableID = 0;
+            break;
+    }
+
+    return nametableID;
+}
+
+void nemus::core::MMC1::writeNametable(unsigned char data, unsigned address) {
+    switch(getMirroringTable(address)) {
+    case 0:
+        m_tableA[address % 0x400] = data;
+        break;
+    case 1:
+        m_tableB[address % 0x400] = data;
+        break;
+    }
+}
+
+unsigned char nemus::core::MMC1::readNametable(unsigned address) {
+    switch(getMirroringTable(address)) {
+    case 0:
+        return m_tableA[address % 0x400];
+    case 1:
+        return m_tableB[address % 0x400];
+    }
+
+    return 0;
+}
+
+unsigned char nemus::core::MMC1::readByte(unsigned address) {
     if(address >= 0x6000 && address < 0x8000) {
         return m_CPUMemory[address - 0x6000];
     }
@@ -66,12 +119,15 @@ unsigned nemus::core::MMC1::readByte(unsigned address) {
     return m_CPUMemory[(address - 0xA000) + (0x4000 * m_prgBank1)];
 }
 
-unsigned nemus::core::MMC1::readBytePPU(unsigned address) {
-    if(address < 0x2000) {
-        return m_PPUMemory[address];
+unsigned char nemus::core::MMC1::readBytePPU(unsigned address) {
+    if(address >= 0x2000 && address < 0x3000) {
+//        unsigned char* nametable = getMirroringTable(address);
+//        address %= 0x400;
+//        return nametable[address];
+        return readNametable(address);
     }
-
-    return readNametable(address);
+     
+    return m_PPUMemory[address];
 }
 
 void nemus::core::MMC1::writeByte(unsigned char data, unsigned address) {
@@ -83,76 +139,27 @@ void nemus::core::MMC1::writeByte(unsigned char data, unsigned address) {
 }
 
 void nemus::core::MMC1::writeBytePPU(unsigned char data, unsigned address) {
-    if (address < 0x2000) {
-        m_PPUMemory[address] = data;
-    } else {
+    if(address >= 0x2000 && address < 0x3000) {
+//        unsigned char* nametable = getMirroringTable(address);
+//        address %= 0x400;
+//        nametable[address] = data;
         writeNametable(data, address);
-    }
-}
-
-unsigned char nemus::core::MMC1::readNametable(unsigned address) {
-    address -= 0x2000;
-    switch(m_control.mirroring) {
-    case MIRROR_VERTICAL:
-        if(address < 0x800) {
-            return m_tableA[address % 0x400];
-        } else {
-            return m_tableB[address % 0x400];
-        }
-        break;
-    case MIRROR_HORIZONTAL:
-        address %= 0x800;
-        if(address < 0x400) {
-            return m_tableA[address];
-        } else {
-            return m_tableB[address % 0x400];
-        }
-        break;
-    default:
-        // TODO: Implement the rest
-        break;
-    }
-}
-
-void nemus::core::MMC1::writeNametable(unsigned char data, unsigned address) {
-    address -= 0x2000;
-    switch(m_control.mirroring) {
-    case MIRROR_HORIZONTAL:
-        if(address < 0x800) {
-            m_tableA[address % 0x400] = data;
-        } else {
-            m_tableB[address % 0x400] = data;
-        }
-        break;
-    case MIRROR_VERTICAL:
-        address %= 0x800;
-        if(address < 0x400) {
-            m_tableA[address] = data;
-        } else {
-            m_tableB[address % 0x400] = data;
-        }
-        break;
-    default:
-        // TODO: Implement the rest
-        break;
+    } else {
+        m_PPUMemory[address] = data;
     }
 }
 
 void nemus::core::MMC1::adjustShiftRegister(unsigned char data, unsigned address) {
     if(data & 0x80) {
-        m_shiftRegister = 0x10;
-
         unsigned char control = 0;
         control |= (m_control.prg_mode & 3) << 2;
         control |= (m_control.chr_mode & 1) << 4;
         control |= m_control.mirroring & 3;
         control |= 0xC;
 
-        m_control.mirroring = control & 3;
-        m_control.prg_mode = (control >> 2) & 3;
-        m_control.chr_mode = (control >> 4) & 1;
+        m_shiftRegister = control;
 
-        updateBanks();
+        writeControl();
     } else {
         bool write = m_shiftRegister & 1;
 
@@ -185,10 +192,10 @@ void nemus::core::MMC1::writeControl() {
         m_control.mirroring = MIRROR_OS_UPPER;
         break;
     case 2:
-        m_control.mirroring = MIRROR_HORIZONTAL;
+        m_control.mirroring = MIRROR_VERTICAL;
         break;
     case 3:
-        m_control.mirroring = MIRROR_VERTICAL;
+        m_control.mirroring = MIRROR_HORIZONTAL;
         break;
     }
 

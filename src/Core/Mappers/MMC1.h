@@ -42,17 +42,18 @@ namespace nemus::core {
 
         void updateBanks();
 
-        unsigned char readNametable(unsigned int address);
-        void writeNametable(unsigned char data, unsigned int address);
+        unsigned getMirroringTable(unsigned address);
+        void writeNametable(unsigned char data, unsigned address);
+        unsigned char readNametable(unsigned address);
 
     public:
         MMC1(char* romStart, long size);
         MMC1(char* romStart, long romSize, char* savStart, long savSize);
         ~MMC1();
 
-        unsigned int readByte(unsigned int address) override;
+        unsigned char readByte(unsigned int address) override;
 
-        unsigned int readBytePPU(unsigned int address) override;
+        unsigned char readBytePPU(unsigned int address) override;
 
         void writeByte(unsigned char data, unsigned int address) override;
 

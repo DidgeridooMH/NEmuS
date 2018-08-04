@@ -45,6 +45,15 @@ nemus::ui::Screen::Screen(core::PPU *ppu, NES* nes, core::Input* input, QWidget*
     m_oldTime = std::chrono::system_clock::now();
 }
 
+nemus::ui::Screen::~Screen() {
+    delete m_fileMenu;
+    delete m_loadRomAction;
+    delete m_settingsAction;
+    delete m_exitAction;
+
+    delete m_state;
+}
+
 void nemus::ui::Screen::updateWindow() {
     QApplication::processEvents();
     update();

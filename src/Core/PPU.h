@@ -30,13 +30,12 @@ namespace nemus::core {
         unsigned int *m_frontBuffer = nullptr;
         unsigned int *m_backBuffer = nullptr;
 
-        unsigned char* m_vram = nullptr;
-
         unsigned char m_oam[0x100];
 
         OAMEntry m_oamEntries[8];
         unsigned int m_spriteCount;
         unsigned char m_spriteScanline[0x100];
+        bool m_hitNextLine = false;
 
         std::vector<unsigned int> m_sprite0Pixels;
 
@@ -90,8 +89,6 @@ namespace nemus::core {
         bool m_addressLatch = false;
 
         void renderPixel();
-
-        void dumpOAM(std::string filename);
 
         void evaluateSprites();
 

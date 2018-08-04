@@ -42,6 +42,7 @@ namespace nemus::ui {
 
     public:
         Screen(core::PPU *ppu, NES* nes, core::Input* input, QWidget* parent);
+        ~Screen();
 
         void updateWindow();
 

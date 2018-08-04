@@ -11,15 +11,22 @@ namespace nemus::core {
 
         unsigned char* m_fixedPPUMemory;
 
+        unsigned char* m_tableA;
+        unsigned char* m_tableB;
+        unsigned char* m_tableC;
+        unsigned char* m_tableD;
+
         int m_mirroring;
+
+        unsigned char* getMirroringTable(unsigned address);
 
     public:
         NROM(char* romStart);
         ~NROM();
 
-        unsigned int readByte(unsigned int address) override;
+        unsigned char readByte(unsigned int address) override;
 
-        unsigned int readBytePPU(unsigned int address) override;
+        unsigned char readBytePPU(unsigned int address) override;
 
         void writeByte(unsigned char data, unsigned int address) override;
 

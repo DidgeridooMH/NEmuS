@@ -5,6 +5,10 @@
 #include "../UI/Screen.h"
 
 nemus::core::PPU::PPU() {
+    m_backBuffer = new unsigned int[SCREEN_WIDTH * SCREEN_HEIGHT];
+    
+    m_frontBuffer = new unsigned int[SCREEN_WIDTH * SCREEN_HEIGHT];
+
     reset();
 }
 
@@ -51,23 +55,11 @@ void nemus::core::PPU::reset() {
     m_oamDMA = 2;
 
     m_oamTransfer = 0;
-
-    
-    delete[] m_vram;
-    m_vram = new unsigned char[0x8000];
-
-    delete[] m_backBuffer;
-    m_backBuffer = new unsigned int[SCREEN_WIDTH * SCREEN_HEIGHT];
-    memset(m_backBuffer, 0, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(unsigned int));
-    
-    m_frontBuffer = new unsigned int[SCREEN_WIDTH * SCREEN_HEIGHT];
-    memset(m_frontBuffer, 0, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(unsigned int));
 }
 
 nemus::core::PPU::~PPU() {
     delete[] m_backBuffer;
     delete[] m_frontBuffer;
-    delete[] m_vram;
 }
 
 int nemus::core::PPU::getNameTableAddress(unsigned int cycle) {
@@ -75,7 +67,7 @@ int nemus::core::PPU::getNameTableAddress(unsigned int cycle) {
 
     int offset = 0x400 * m_ppuCtrl.name_select;
 
-    if(cycle > 0x100) {
+    if(cycle > 0xFF) {
         offset += 0x400;
         offset &= 0xFFF;
     }
@@ -84,7 +76,7 @@ int nemus::core::PPU::getNameTableAddress(unsigned int cycle) {
 }
 
 void nemus::core::PPU::renderPixel() {
-    unsigned char scanline = m_scanline + m_ppuScrollY;
+    unsigned char scanline = m_scanline;
 
     unsigned int cycle = m_cycle + m_ppuScrollX;
 
@@ -125,7 +117,7 @@ void nemus::core::PPU::renderPixel() {
             if(m_spriteScanline[m_cycle] > 0) {
                 for(unsigned int sprite0Pixel : m_sprite0Pixels) {
                     if(m_cycle == sprite0Pixel) {
-                        m_ppuStatus.s0_hit = true;
+                        m_hitNextLine = true;
                     }
                 }
 
@@ -170,10 +162,6 @@ void nemus::core::PPU::tick() {
 
         m_sprite0Pixels.clear();
 
-        for (int i = 0; i < 0x100; i++) {
-            m_spriteScanline[i] = 0;
-        }
-
         unsigned int* tmp = m_backBuffer;
         m_backBuffer = m_frontBuffer;
         m_frontBuffer = tmp;
@@ -182,8 +170,14 @@ void nemus::core::PPU::tick() {
     }
 
     if(++m_cycle > 256) {
+        if(m_hitNextLine) {
+            m_ppuStatus.s0_hit = true;
+            m_hitNextLine = false;
+        }
+
         m_scanline++;
         m_cycle = 0;
+        m_sprite0Pixels.clear();
         if(m_scanline < 240) {
             evaluateSprites();
         }
@@ -205,7 +199,7 @@ void nemus::core::PPU::evaluateSprites() {
     m_ppuStatus.sprite_overflow = false;
 
     // Read through OAM finding first 8 sprites on scanline
-    for(int i = 0; i < 0x100; i += 4) {
+    for(int i = 0xFC; i >= 0; i -= 4) {
         const int ycheck = m_scanline - m_oam[i];
         if (ycheck >= 0 && ycheck < 8 + (8 * m_ppuCtrl.sprite_height)) {
             if (m_spriteCount < 8) {
@@ -255,10 +249,12 @@ void nemus::core::PPU::evaluateSprites() {
             }
 
             if (scanlineAddr < 256) {
-                if(m_oamEntries[i].id == 0 && color != 0) {
-                    m_sprite0Pixels.push_back(scanlineAddr);
+                if(color != 0) {
+                    if(m_oamEntries[i].id == 0) {
+                        m_sprite0Pixels.push_back(scanlineAddr);
+                    }
+                    m_spriteScanline[scanlineAddr] = color;
                 }
-                m_spriteScanline[scanlineAddr] = color;
             }
         }
     }
@@ -383,7 +379,7 @@ void nemus::core::PPU::writePPUData(unsigned int data) {
 }
 
 unsigned int nemus::core::PPU::readPPUData() {
-    unsigned int value = (m_ppuAddr >= 0x2000) ? m_vram[m_ppuAddr] : m_memory->readPPUByte(m_ppuAddr);
+    unsigned int value = m_memory->readPPUByte(m_ppuAddr);
 
     unsigned char ret = m_dataBuffer;
 
@@ -422,11 +418,7 @@ void nemus::core::PPU::writePPUScroll(unsigned int data) {
 }
 
 void nemus::core::PPU::writeVRAM(unsigned char data, int address) {
-    if (address >= 0x3000) {
-        m_vram[address] = data;
-    } else {
-        m_memory->writePPUByte(data, address);
-    }
+    m_memory->writePPUByte(data, address);
 }
 
 void nemus::core::PPU::dumpRam(std::string filename) {
@@ -434,18 +426,7 @@ void nemus::core::PPU::dumpRam(std::string filename) {
     output.open(filename, std::ios::out | std::ios::binary);
 
     for(int i = 0; i < 0x4000; i++) {
-        output << m_vram[i];
-    }
-
-    output.close();
-}
-
-void nemus::core::PPU::dumpOAM(std::string filename) {
-    std::fstream output;
-    output.open(filename, std::ios::out | std::ios::binary);
-
-    for(int i = 0; i < 0x100; i++) {
-        output << m_oam[i];
+        output << m_memory->readPPUByte(i);
     }
 
     output.close();
@@ -454,15 +435,9 @@ void nemus::core::PPU::dumpOAM(std::string filename) {
 void nemus::core::PPU::writeOAMDMA(unsigned int data) {
     unsigned int cpuAddress = data << 8;
 
-    if(m_memory->readByte(cpuAddress) != 0xF8) {
-        int i = 0;
-    }
-
     for(int i = 0; i < 0x100; i++) {
         m_oam[(m_oamAddr + i) % 0x100] = (unsigned char)(m_memory->readByte(cpuAddress + i));
     }
-
-    dumpOAM("oam.dat");
 }
 
 void nemus::core::PPU::writeOAMData(unsigned int data) {

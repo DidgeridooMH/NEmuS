@@ -4,9 +4,15 @@
 
 nemus::debug::Logger::Logger() {
     m_fileOut.open("instructions.log");
+
+    m_fileBuffer = new char[FILE_BUFFER_SIZE];
+
+    m_bufferPtr = 0;
 }
 
 nemus::debug::Logger::~Logger() {
+    m_fileOut.write(m_fileBuffer, FILE_BUFFER_SIZE);
+
     if(m_fileOut.is_open()) {
         m_fileOut.close();
     }
