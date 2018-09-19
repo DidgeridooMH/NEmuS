@@ -1,6 +1,5 @@
-#include <iostream>
-#include <cstring>
 #include <sstream>
+#include <QMessageBox>
 #include "CPU.h"
 #include "Memory.h"
 
@@ -645,6 +644,66 @@ int nemus::core::CPU::tick() {
             subtract(comp::ADDR_MODE_INDIRECT_Y);
             break;
 
+        // SLO
+        case 0x03:
+            asl(comp::ADDR_MODE_INDIRECT_X);
+            ora(comp::ADDR_MODE_INDIRECT_X);
+            break;
+        case 0x07:
+            asl(comp::ADDR_MODE_ZERO_PAGE);
+            ora(comp::ADDR_MODE_ZERO_PAGE);
+            break;
+        case 0x0F:
+            asl(comp::ADDR_MODE_ABSOLUTE);
+            ora(comp::ADDR_MODE_ABSOLUTE);
+            break;
+        case 0x13:
+            asl(comp::ADDR_MODE_INDIRECT_Y);
+            ora(comp::ADDR_MODE_INDIRECT_Y);
+            break;
+        case 0x17:
+            asl(comp::ADDR_MODE_ZERO_PAGE_X);
+            ora(comp::ADDR_MODE_ZERO_PAGE_X);
+            break;
+        case 0x1B:
+            asl(comp::ADDR_MODE_ABSOLUTE_Y);
+            ora(comp::ADDR_MODE_ABSOLUTE_Y);
+            break;
+        case 0x1F:
+            asl(comp::ADDR_MODE_ABSOLUTE_X);
+            ora(comp::ADDR_MODE_ABSOLUTE_X);
+            break;
+
+        // RLA
+        case 0x23:
+            rotateLeft(comp::ADDR_MODE_INDIRECT_X);
+            bitAnd(comp::ADDR_MODE_INDIRECT_X);
+            break;
+        case 0x27:
+            rotateLeft(comp::ADDR_MODE_ZERO_PAGE);
+            bitAnd(comp::ADDR_MODE_ZERO_PAGE);
+            break;
+        case 0x2F:
+            rotateLeft(comp::ADDR_MODE_ABSOLUTE);
+            bitAnd(comp::ADDR_MODE_ABSOLUTE);
+            break;
+        case 0x33:
+            rotateLeft(comp::ADDR_MODE_INDIRECT_Y);
+            bitAnd(comp::ADDR_MODE_INDIRECT_Y);
+            break;
+        case 0x37:
+            rotateLeft(comp::ADDR_MODE_ZERO_PAGE_X);
+            bitAnd(comp::ADDR_MODE_ZERO_PAGE_X);
+            break;
+        case 0x3B:
+            rotateLeft(comp::ADDR_MODE_ABSOLUTE_Y);
+            bitAnd(comp::ADDR_MODE_ABSOLUTE_Y);
+            break;
+        case 0x3F:
+            rotateLeft(comp::ADDR_MODE_ABSOLUTE_X);
+            bitAnd(comp::ADDR_MODE_ABSOLUTE_X);
+            break;
+
         // RTI
         case 0x40:
             setFlags(m_memory->pop(m_reg.sp));
@@ -656,6 +715,10 @@ int nemus::core::CPU::tick() {
 
         default:
             m_logger->writeError(m_opcodes[op], m_reg.pc);
+            std::stringstream msg;
+            msg << "Unknown opcode $" << std::hex << op << ":" << m_opcodes[op] << " at $" << m_reg.pc;
+            QMessageBox* msg_box = new QMessageBox(QMessageBox::Critical, "Unimplemented Opcode", msg.str().c_str(), QMessageBox::StandardButton::Ok);
+            msg_box->exec();
             m_running = false;
             return 0;
     }
@@ -743,22 +806,14 @@ void nemus::core::CPU::generateOP() {
     }
 
     int instructionSizes[256] = {
-            1, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
-            2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
-            3, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
-            2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
-            1, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
-            2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
-            1, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
-            2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
-            2, 2, 0, 0, 2, 2, 2, 0, 1, 0, 1, 0, 3, 3, 3, 0,
-            2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 0, 3, 0, 0,
-            2, 2, 2, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
-            2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
-            2, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
-            2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
-            2, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
-            2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
+            1, 2, 0, 2, 2, 2, 2, 2, 1, 2, 1, 2, 3, 3, 3, 3, 2, 2, 0, 2, 2, 2, 2, 2, 1, 3, 1, 3, 3, 3, 3, 3,
+            3, 2, 0, 2, 2, 2, 2, 2, 1, 2, 1, 2, 3, 3, 3, 3, 2, 2, 0, 2, 2, 2, 2, 2, 1, 3, 1, 3, 3, 3, 3, 3,
+            1, 2, 0, 2, 2, 2, 2, 2, 1, 2, 1, 2, 3, 3, 3, 3, 2, 2, 0, 2, 2, 2, 2, 2, 1, 3, 1, 3, 3, 3, 3, 3,
+            1, 2, 0, 2, 2, 2, 2, 2, 1, 2, 1, 2, 3, 3, 3, 3, 2, 2, 0, 2, 2, 2, 2, 2, 1, 3, 1, 3, 3, 3, 3, 3,
+            2, 2, 0, 2, 2, 2, 2, 2, 1, 0, 1, 2, 3, 3, 3, 3, 2, 2, 0, 2, 2, 2, 2, 2, 1, 3, 1, 3, 0, 3, 0, 3,
+            2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 1, 2, 3, 3, 3, 3, 2, 2, 0, 2, 2, 2, 2, 2, 1, 3, 1, 3, 3, 3, 3, 3,
+            2, 2, 0, 2, 2, 2, 2, 2, 1, 2, 1, 2, 3, 3, 3, 3, 2, 2, 0, 2, 2, 2, 2, 2, 1, 3, 1, 3, 3, 3, 3, 3,
+            2, 2, 0, 2, 2, 2, 2, 2, 1, 2, 1, 2, 3, 3, 3, 3, 2, 2, 0, 2, 2, 2, 2, 2, 1, 3, 1, 3, 3, 3, 3, 3,
     };
 
     for(int i = 0; i < 256; i++) {

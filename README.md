@@ -1,6 +1,8 @@
 # NEmuS
 NEmuS is an NES emulator written in C++ using the Qt libraries. Cross compatibilty is a main focus during the development and no platform specific code should be pushed without OS guards and sufficient workarounds for other platforms. Cycle specific timings isn't as much of a priority as getting more game support for the project. Any who wish to use, copy, or modify any of this project can do so freely (check LICENSE for more details).
 
+![mario_playing](https://github.com/didgeridoomh/nemus/raw/master/resources/nes_mario.gif)
+
 ## Building
 ### Setting Up Libraries
  - Add the directories "include" and "lib" to the src/ directory. 
