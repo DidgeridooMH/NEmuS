@@ -646,18 +646,22 @@ int nemus::core::CPU::tick() {
 
         // SLO
         case 0x03:
+            m_logger->write("SOL Instruction");
             asl(comp::ADDR_MODE_INDIRECT_X);
             ora(comp::ADDR_MODE_INDIRECT_X);
             break;
         case 0x07:
+            m_logger->write("SOL Instruction");
             asl(comp::ADDR_MODE_ZERO_PAGE);
             ora(comp::ADDR_MODE_ZERO_PAGE);
             break;
         case 0x0F:
+            m_logger->write("SOL Instruction");
             asl(comp::ADDR_MODE_ABSOLUTE);
             ora(comp::ADDR_MODE_ABSOLUTE);
             break;
         case 0x13:
+            m_logger->write("SOL Instruction");
             asl(comp::ADDR_MODE_INDIRECT_Y);
             ora(comp::ADDR_MODE_INDIRECT_Y);
             break;
@@ -666,40 +670,49 @@ int nemus::core::CPU::tick() {
             ora(comp::ADDR_MODE_ZERO_PAGE_X);
             break;
         case 0x1B:
+            m_logger->write("SOL Instruction");
             asl(comp::ADDR_MODE_ABSOLUTE_Y);
             ora(comp::ADDR_MODE_ABSOLUTE_Y);
             break;
         case 0x1F:
+            m_logger->write("SOL Instruction");
             asl(comp::ADDR_MODE_ABSOLUTE_X);
             ora(comp::ADDR_MODE_ABSOLUTE_X);
             break;
 
         // RLA
         case 0x23:
+            m_logger->write("RLA Instruction");
             rotateLeft(comp::ADDR_MODE_INDIRECT_X);
             bitAnd(comp::ADDR_MODE_INDIRECT_X);
             break;
         case 0x27:
+            m_logger->write("RLA Instruction");
             rotateLeft(comp::ADDR_MODE_ZERO_PAGE);
             bitAnd(comp::ADDR_MODE_ZERO_PAGE);
             break;
         case 0x2F:
+            m_logger->write("RLA Instruction");
             rotateLeft(comp::ADDR_MODE_ABSOLUTE);
             bitAnd(comp::ADDR_MODE_ABSOLUTE);
             break;
         case 0x33:
+            m_logger->write("RLA Instruction");
             rotateLeft(comp::ADDR_MODE_INDIRECT_Y);
             bitAnd(comp::ADDR_MODE_INDIRECT_Y);
             break;
         case 0x37:
+            m_logger->write("RLA Instruction");
             rotateLeft(comp::ADDR_MODE_ZERO_PAGE_X);
             bitAnd(comp::ADDR_MODE_ZERO_PAGE_X);
             break;
         case 0x3B:
+            m_logger->write("RLA Instruction");
             rotateLeft(comp::ADDR_MODE_ABSOLUTE_Y);
             bitAnd(comp::ADDR_MODE_ABSOLUTE_Y);
             break;
         case 0x3F:
+            m_logger->write("RLA Instruction");
             rotateLeft(comp::ADDR_MODE_ABSOLUTE_X);
             bitAnd(comp::ADDR_MODE_ABSOLUTE_X);
             break;
