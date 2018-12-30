@@ -66,6 +66,8 @@ namespace nemus::core {
 
         unsigned int pop16(unsigned int &sp);
 
+        unsigned int checkPageCross(comp::Registers registers, comp::AddressMode mode);
+
     };
 
 }

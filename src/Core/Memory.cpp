@@ -266,3 +266,22 @@ unsigned int nemus::core::Memory::pop16(unsigned int &sp) {
 
     return address;
 }
+
+unsigned int nemus::core::Memory::checkPageCross(comp::Registers registers, comp::AddressMode mode) {
+    switch(mode) {
+    case comp::ADDR_MODE_ABSOLUTE_X: {
+        const auto address = readWord(registers.pc + 1);
+        return (address + registers.x & 0xFF00) != (address & 0xFF00);
+    }
+    case comp::ADDR_MODE_ABSOLUTE_Y: {
+        const auto address = readWord(registers.pc + 1);
+        return (address + registers.y & 0xFF00) != (address & 0xFF00);
+    }
+    case comp::ADDR_MODE_INDIRECT_Y: {
+        auto address = readByte(registers.pc + 1);
+        return (address & 0xFF00) 
+            != (readWordBug(address) + registers.y & 0xFF00);
+    }
+    }
+    return 0;
+}

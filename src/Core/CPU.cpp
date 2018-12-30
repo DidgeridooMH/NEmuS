@@ -31,13 +31,14 @@ nemus::core::CPU::CPU(Memory* memory, debug::Logger* logger) {
 int nemus::core::CPU::tick() {
     // NMI
     if(m_interrupt != comp::INT_NONE) {
-        if(m_interrupt == comp::INT_NMI || !m_flags.I) {
+        if (m_interrupt == comp::INT_NMI || !m_flags.I) {
             interrupt();
             return 0;
         }
     }
 
     unsigned int op = m_memory->readByte(m_reg.pc);
+    unsigned int pageCycle = 0;
 
     switch(op) {
         // NOP
@@ -131,15 +132,18 @@ int nemus::core::CPU::tick() {
             load(m_reg.a, comp::ADDR_MODE_ABSOLUTE);
             break;
         case 0xBD:
+            pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_X);
             load(m_reg.a, comp::ADDR_MODE_ABSOLUTE_X);
             break;
         case 0xB9:
+            pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_Y);
             load(m_reg.a, comp::ADDR_MODE_ABSOLUTE_Y);
             break;
         case 0xA1:
             load(m_reg.a, comp::ADDR_MODE_INDIRECT_X);
             break;
         case 0xB1:
+            pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_INDIRECT_Y);
             load(m_reg.a, comp::ADDR_MODE_INDIRECT_Y);
             break;
 
@@ -157,6 +161,7 @@ int nemus::core::CPU::tick() {
             load(m_reg.x, comp::ADDR_MODE_ABSOLUTE);
             break;
         case 0xBE:
+            pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_Y);
             load(m_reg.x, comp::ADDR_MODE_ABSOLUTE_Y);
             break;
 
@@ -174,6 +179,7 @@ int nemus::core::CPU::tick() {
             load(m_reg.y, comp::ADDR_MODE_ABSOLUTE);
             break;
         case 0xBC:
+            pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_Y);
             load(m_reg.y, comp::ADDR_MODE_ABSOLUTE_X);
             break;
 
@@ -238,30 +244,62 @@ int nemus::core::CPU::tick() {
             break;
 
         // Branching
-        case 0x10:
+        case 0x10: {
+            auto address = m_reg.pc;
+            pageCycle = !m_flags.N;
             branch(!m_flags.N);
+            pageCycle += ((address & 0xFF00) != m_reg.pc + m_opsize[op]) * 2;
             break;
-        case 0x30:
+        }
+        case 0x30: {
+            auto address = m_reg.pc;
+            pageCycle = m_flags.N;
             branch(m_flags.N);
+            pageCycle += ((address & 0xFF00) != m_reg.pc + m_opsize[op]) * 2;
             break;
-        case 0x50:
+        }
+        case 0x50: {
+            auto address = m_reg.pc;
+            pageCycle = !m_flags.V;
             branch(!m_flags.V);
+            pageCycle += ((address & 0xFF00) != m_reg.pc + m_opsize[op]) * 2;
             break;
-        case 0x70:
+        }
+        case 0x70: {
+            auto address = m_reg.pc;
+            pageCycle = m_flags.V;
             branch(m_flags.V);
+            pageCycle += ((address & 0xFF00) != m_reg.pc + m_opsize[op]) * 2;
             break;
-        case 0x90:
+        }
+        case 0x90: {
+            auto address = m_reg.pc;
+            pageCycle = !m_flags.C;
             branch(!m_flags.C);
+            pageCycle += ((address & 0xFF00) != m_reg.pc + m_opsize[op]) * 2;
             break;
-        case 0xB0:
+        }
+        case 0xB0: {
+            auto address = m_reg.pc;
+            pageCycle = m_flags.C;
             branch(m_flags.C);
+            pageCycle += ((address & 0xFF00) != m_reg.pc + m_opsize[op]) * 2;
             break;
-        case 0xD0:
+        }
+        case 0xD0: {
+            auto address = m_reg.pc;
+            pageCycle = !m_flags.Z;
             branch(!m_flags.Z);
+            pageCycle += ((address & 0xFF00) != m_reg.pc + m_opsize[op]) * 2;
             break;
-        case 0xF0:
+        }
+        case 0xF0: {
+            auto address = m_reg.pc;
+            pageCycle = m_flags.Z;
             branch(m_flags.Z);
+            pageCycle += ((address & 0xFF00) != m_reg.pc + m_opsize[op]) * 2;
             break;
+        }
 
         // CMP
         case 0xC9:
@@ -277,15 +315,18 @@ int nemus::core::CPU::tick() {
             compare(m_reg.a, comp::ADDR_MODE_ABSOLUTE);
             break;
         case 0xDD:
+            pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_X);
             compare(m_reg.a, comp::ADDR_MODE_ABSOLUTE_X);
             break;
         case 0xD9:
+            pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_Y);
             compare(m_reg.a, comp::ADDR_MODE_ABSOLUTE_Y);
             break;
         case 0xC1:
             compare(m_reg.a, comp::ADDR_MODE_INDIRECT_X);
             break;
         case 0xD1:
+            pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_INDIRECT_Y);
             compare(m_reg.a, comp::ADDR_MODE_INDIRECT_Y);
             break;
 
@@ -397,15 +438,18 @@ int nemus::core::CPU::tick() {
             ora(comp::ADDR_MODE_ABSOLUTE);
             break;
         case 0x1D:
+            pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_X);
             ora(comp::ADDR_MODE_ABSOLUTE_X);
             break;
         case 0x19:
+            pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_Y);
             ora(comp::ADDR_MODE_ABSOLUTE_Y);
             break;
         case 0x01:
             ora(comp::ADDR_MODE_INDIRECT_X);
             break;
         case 0x11:
+            pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_INDIRECT_Y);
             ora(comp::ADDR_MODE_INDIRECT_Y);
             break;
 
@@ -423,15 +467,18 @@ int nemus::core::CPU::tick() {
             xora(comp::ADDR_MODE_ABSOLUTE);
             break;
         case 0x5D:
+            pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_X);
             xora(comp::ADDR_MODE_ABSOLUTE_X);
             break;
         case 0x59:
+            pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_Y);
             xora(comp::ADDR_MODE_ABSOLUTE_Y);
             break;
         case 0x41:
             xora(comp::ADDR_MODE_INDIRECT_X);
             break;
         case 0x51:
+            pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_INDIRECT_Y);
             xora(comp::ADDR_MODE_INDIRECT_Y);
             break;
 
@@ -606,15 +653,18 @@ int nemus::core::CPU::tick() {
             adc(comp::ADDR_MODE_ABSOLUTE);
             break;
         case 0x7D:
+            pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_X);
             adc(comp::ADDR_MODE_ABSOLUTE_X);
             break;
         case 0x79:
+            pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_Y);
             adc(comp::ADDR_MODE_ABSOLUTE_Y);
             break;
         case 0x61:
             adc(comp::ADDR_MODE_INDIRECT_X);
             break;
         case 0x71:
+            pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_INDIRECT_Y);
             adc(comp::ADDR_MODE_INDIRECT_Y);
             break;
 
@@ -632,15 +682,18 @@ int nemus::core::CPU::tick() {
             subtract(comp::ADDR_MODE_ABSOLUTE);
             break;
         case 0xFD:
+            pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_X);
             subtract(comp::ADDR_MODE_ABSOLUTE_X);
             break;
         case 0xF9:
+            pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_Y);
             subtract(comp::ADDR_MODE_ABSOLUTE_Y);
             break;
         case 0xE1:
             subtract(comp::ADDR_MODE_INDIRECT_X);
             break;
         case 0xF1:
+            pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_INDIRECT_Y);
             subtract(comp::ADDR_MODE_INDIRECT_Y);
             break;
 
@@ -726,6 +779,12 @@ int nemus::core::CPU::tick() {
             m_logger->writeInstruction(m_reg, "rti", m_reg.pc, comp::ADDR_MODE_IMPLIED);
             break;
 
+        // BRK
+        case 0x00:
+            m_interrupt = comp::INT_IRQ;
+            interrupt();
+            break;
+
         default:
             m_logger->writeError(m_opcodes[op], m_reg.pc);
             std::stringstream msg;
@@ -738,7 +797,7 @@ int nemus::core::CPU::tick() {
 
     m_reg.pc += m_opsize[op];
 
-    return m_cyclesTable[op];
+    return m_cyclesTable[op] + pageCycle;
 }
 
 void nemus::core::CPU::interrupt() {
