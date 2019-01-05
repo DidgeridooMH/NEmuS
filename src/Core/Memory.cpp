@@ -244,6 +244,7 @@ void nemus::core::Memory::writePPUByte(unsigned char data, unsigned address) {
 void nemus::core::Memory::push(unsigned int data, unsigned int &sp) {
     m_ram[sp + 0x100] = (unsigned char)data;
     sp--;
+    sp &= 0xFF;
 }
 
 void nemus::core::Memory::push16(unsigned int data, unsigned int &sp) {
@@ -255,6 +256,7 @@ void nemus::core::Memory::push16(unsigned int data, unsigned int &sp) {
 
 unsigned int nemus::core::Memory::pop(unsigned int &sp) {
     sp++;
+    sp &= 0xFF;
     return (m_ram[sp + 0x100] & 0xFF);
 }
 

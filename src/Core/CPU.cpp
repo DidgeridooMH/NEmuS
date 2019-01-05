@@ -635,7 +635,8 @@ int nemus::core::CPU::tick() {
         // PLP
         case 0x28:
             setFlags(m_memory->pop(m_reg.sp));
-            m_reg.p = generateFlags();
+            m_flags.P = false;
+            m_reg.p = generateFlags() & ~0x30;
             m_logger->writeInstruction(m_reg, "plp", generateFlags(), comp::ADDR_MODE_IMPLIED);
             break;
 
@@ -772,7 +773,7 @@ int nemus::core::CPU::tick() {
 
         // RTI
         case 0x40:
-            setFlags(m_memory->pop(m_reg.sp));
+            setFlags(m_memory->pop(m_reg.sp) & ~0x30);
             m_reg.pc = m_memory->pop16(m_reg.sp) - 1;
 
             m_reg.p = generateFlags();
@@ -781,8 +782,14 @@ int nemus::core::CPU::tick() {
 
         // BRK
         case 0x00:
-            m_interrupt = comp::INT_IRQ;
-            interrupt();
+            m_memory->push16(m_reg.pc + 2, m_reg.sp);
+            setFlags(comp::FLAG_PUSHED);
+            m_memory->push(generateFlags(), m_reg.sp);
+            unsetFlags(comp::FLAG_PUSHED);
+            m_reg.p = generateFlags();
+
+            setFlags(comp::FLAG_INTERRUPT);
+            m_reg.pc = m_memory->readWord(0xFFFE) - 1;
             break;
 
         default:
@@ -1229,6 +1236,7 @@ void nemus::core::CPU::setFlags(unsigned int flagbits) {
     m_flags.Z = (flagbits & 0x02) != 0;
     m_flags.I = (flagbits & 0x04) != 0;
     m_flags.D = (flagbits & 0x08) != 0;
+    m_flags.P = (flagbits & 0x10) != 0;
     m_flags.V = (flagbits & 0x40) != 0;
     m_flags.N = (flagbits & 0x80) != 0;
 }
