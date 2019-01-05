@@ -1165,7 +1165,7 @@ void nemus::core::CPU::rotateRight(comp::AddressMode addr) {
     } else {
         unsigned int operand = m_memory->readByte(m_reg, addr);
 
-        m_flags.C = (bool)(m_reg.a & 0x01);
+        m_flags.C = (bool)(operand & 0x01);
 
         operand = (operand & 0xFF) >> 1;
 
