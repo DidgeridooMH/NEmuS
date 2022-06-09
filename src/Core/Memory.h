@@ -1,44 +1,51 @@
 #ifndef NEMUS_MEMORY_H
 #define NEMUS_MEMORY_H
 
+#include <memory>
+#include <vector>
+
 #include "../Debug/Logger.h"
-#include "include/ComponentHelper.h"
+#include "ComponentHelper.h"
 #include "PPU.h"
 #include "Mappers/Mapper.h"
 #include "Input.h"
 
-namespace nemus::core {
+namespace nemus::core
+{
     class CPU;
 
-    struct FileInfo {
-        char* start_of_file;
+    struct FileInfo
+    {
+        char *start_of_file;
         long size;
     };
 
-    class Memory {
+    class Memory
+    {
     private:
         debug::Logger *m_logger;
 
         PPU *m_ppu;
 
-        Mapper* m_mapper;
+        Mapper *m_mapper;
 
-        Input* m_input;
+        Input *m_input;
 
         unsigned char *m_ram;
 
-        char *m_rom;
+        std::shared_ptr<std::vector<char>> m_rom;
 
         FileInfo loadSaveFile(std::string filename);
 
     public:
-        Memory(debug::Logger *logger, core::PPU *ppu, core::Input* input, std::string filename);
+        Memory(debug::Logger *logger, core::PPU *ppu, core::Input *input,
+               const std::vector<char> &gameData);
 
         ~Memory();
 
-        void loadRom(std::string filename);
+        void loadRom(const std::vector<char> &gameData, const std::string &filename = "");
 
-        char readRom(int address) { return m_rom[address]; }
+        inline char readRom(int address) { return m_rom->at(address); }
 
         int getMirroring() { return m_mapper->getMirroring(); }
 
@@ -67,7 +74,6 @@ namespace nemus::core {
         unsigned int pop16(unsigned int &sp);
 
         unsigned int checkPageCross(comp::Registers registers, comp::AddressMode mode);
-
     };
 
 }

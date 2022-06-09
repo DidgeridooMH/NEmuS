@@ -1,27 +1,31 @@
 #ifndef NEMUS_NROM_H
 #define NEMUS_NROM_H
 
+#include <vector>
+
 #include "Mapper.h"
 
-namespace nemus::core {
+namespace nemus::core
+{
 
-    class NROM : public Mapper {
+    class NROM : public Mapper
+    {
     private:
-        unsigned char* m_fixedCPUMemory;
+        unsigned char *m_fixedCPUMemory;
 
-        unsigned char* m_fixedPPUMemory;
+        unsigned char *m_fixedPPUMemory;
 
-        unsigned char* m_tableA;
-        unsigned char* m_tableB;
-        unsigned char* m_tableC;
-        unsigned char* m_tableD;
+        unsigned char *m_tableA;
+        unsigned char *m_tableB;
+        unsigned char *m_tableC;
+        unsigned char *m_tableD;
 
         int m_mirroring;
 
-        unsigned char* getMirroringTable(unsigned address);
+        unsigned char *getMirroringTable(unsigned address);
 
     public:
-        NROM(char* romStart);
+        NROM(const std::vector<char> &romStart);
         ~NROM();
 
         unsigned char readByte(unsigned int address) override;

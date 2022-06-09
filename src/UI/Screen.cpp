@@ -10,24 +10,25 @@
 #include "../Core/NES.h"
 #include "Settings.h"
 
-nemus::ui::Screen::Screen(core::PPU *ppu, NES* nes, core::Input* input, QWidget* parent) : QMainWindow(parent) {
+nemus::ui::Screen::Screen(core::PPU *ppu, NES *nes, core::Input *input, QWidget *parent) : QMainWindow(parent)
+{
     m_ppu = ppu;
     m_nes = nes;
     m_input = input;
 
     m_state = new SettingsState(SCALE_1X);
 
-    QWidget* widget = new QWidget;
+    QWidget *widget = new QWidget;
     setCentralWidget(widget);
 
-    QWidget* topFiller = new QWidget;
+    QWidget *topFiller = new QWidget;
     topFiller->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
     QWidget *bottomFiller = new QWidget;
     bottomFiller->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
     QVBoxLayout *layout = new QVBoxLayout;
-    layout->setMargin(5);
+    layout->setContentsMargins(QMargins(5, 5, 5, 5));
     layout->addWidget(topFiller);
     layout->addWidget(bottomFiller);
     widget->setLayout(layout);
@@ -36,7 +37,7 @@ nemus::ui::Screen::Screen(core::PPU *ppu, NES* nes, core::Input* input, QWidget*
 
     std::string title = "NEmuS Alpha";
     setWindowTitle(QString::fromStdString(title));
-    
+
     applySettings();
 
     setFocusPolicy(Qt::ClickFocus);
@@ -45,7 +46,8 @@ nemus::ui::Screen::Screen(core::PPU *ppu, NES* nes, core::Input* input, QWidget*
     m_oldTime = std::chrono::system_clock::now();
 }
 
-nemus::ui::Screen::~Screen() {
+nemus::ui::Screen::~Screen()
+{
     delete m_fileMenu;
     delete m_loadRomAction;
     delete m_settingsAction;
@@ -54,14 +56,17 @@ nemus::ui::Screen::~Screen() {
     delete m_state;
 }
 
-void nemus::ui::Screen::updateWindow() {
+void nemus::ui::Screen::updateWindow()
+{
     QApplication::processEvents();
     update();
 }
 
-void nemus::ui::Screen::keyPressEvent(QKeyEvent* event) {
+void nemus::ui::Screen::keyPressEvent(QKeyEvent *event)
+{
     event->accept();
-    switch(event->key()) {
+    switch (event->key())
+    {
     case Qt::Key_Z:
         m_input->setButton(BUTTON_A);
         break;
@@ -89,9 +94,11 @@ void nemus::ui::Screen::keyPressEvent(QKeyEvent* event) {
     }
 }
 
-void nemus::ui::Screen::keyReleaseEvent(QKeyEvent* event) {
+void nemus::ui::Screen::keyReleaseEvent(QKeyEvent *event)
+{
     event->accept();
-    switch(event->key()) {
+    switch (event->key())
+    {
     case Qt::Key_Z:
         m_input->unsetButton(BUTTON_A);
         break;
@@ -119,7 +126,8 @@ void nemus::ui::Screen::keyReleaseEvent(QKeyEvent* event) {
     }
 }
 
-void nemus::ui::Screen::updateFPS() {
+void nemus::ui::Screen::updateFPS()
+{
     std::chrono::system_clock::time_point newTime = std::chrono::system_clock::now();
     std::chrono::duration<double> deltaTime = newTime - m_oldTime;
 
@@ -130,12 +138,13 @@ void nemus::ui::Screen::updateFPS() {
     m_oldTime = newTime;
 }
 
-void nemus::ui::Screen::create_menu() {
+void nemus::ui::Screen::create_menu()
+{
     m_loadRomAction = new QAction(tr("&Load ROM..."), this);
     connect(m_loadRomAction, &QAction::triggered, this, &Screen::openRom);
 
     m_settingsAction = new QAction(tr("Settings..."), this);
-    connect(m_settingsAction,  &QAction::triggered, this, &Screen::openSettings);
+    connect(m_settingsAction, &QAction::triggered, this, &Screen::openSettings);
 
     m_exitAction = new QAction(tr("&Exit"), this);
     connect(m_exitAction, &QAction::triggered, this, &QWidget::close);
@@ -146,13 +155,15 @@ void nemus::ui::Screen::create_menu() {
     m_fileMenu->addAction(m_exitAction);
 }
 
-void nemus::ui::Screen::closeEvent(QCloseEvent *event) {
+void nemus::ui::Screen::closeEvent(QCloseEvent *event)
+{
     event->accept();
     m_quit = true;
 }
 
 #ifndef QT_NO_CONTEXTMENU
-void nemus::ui::Screen::contextMenuEvent(QContextMenuEvent* event) {
+void nemus::ui::Screen::contextMenuEvent(QContextMenuEvent *event)
+{
     QMenu menu(this);
     menu.addAction(m_loadRomAction);
     menu.addAction(m_settingsAction);
@@ -161,14 +172,16 @@ void nemus::ui::Screen::contextMenuEvent(QContextMenuEvent* event) {
 }
 #endif // QT_NO_CONTEXTMENU
 
-void nemus::ui::Screen::paintEvent(QPaintEvent *event) {
+void nemus::ui::Screen::paintEvent(QPaintEvent *)
+{
     QPainter painter(this);
 
     painter.fillRect(rect(), Qt::black);
 
-    QImage image((unsigned char*)m_ppu->getPixels(), SCREEN_WIDTH, SCREEN_HEIGHT, QImage::Format_ARGB32);
-    
-    switch(m_state->getScale()) {
+    QImage image((unsigned char *)m_ppu->getPixels(), SCREEN_WIDTH, SCREEN_HEIGHT, QImage::Format_ARGB32);
+
+    switch (m_state->getScale())
+    {
     case SCALE_1X:
         painter.drawPixmap(0, SCREEN_OFFSET, QPixmap::fromImage(image));
         break;
@@ -184,15 +197,38 @@ void nemus::ui::Screen::paintEvent(QPaintEvent *event) {
     }
 }
 
-void nemus::ui::Screen::openRom() {
-    QString file_name = QFileDialog::getOpenFileName(this, tr("Open Rom"), "", tr("ROM Files (*.nes)"));
-    
-    if(file_name.size() > 0) {
-        m_nes->loadGame(file_name.toStdString());
+void nemus::ui::Screen::openRom()
+{
+    auto filename = QFileDialog::getOpenFileName(
+                        this, tr("Open Rom"), "", tr("ROM Files (*.nes);;Archive Files (*.zip)"))
+                        .toStdString();
+
+    if (filename.length() > 0)
+    {
+        std::ifstream file(filename, std::ios::ate | std::ios::binary);
+        if (!file)
+        {
+            // TODO: Make a message box.
+            return;
+        }
+
+        long size = file.tellg();
+        file.seekg(file.beg);
+
+        std::vector<char> fileContents(size);
+        file.read(fileContents.data(), size);
+
+        if (filename.substr(filename.length() - 4) == ".zip")
+        {
+            // Decompress
+        }
+
+        m_nes->loadGame(fileContents);
     }
 }
 
-void nemus::ui::Screen::openSettings() {
+void nemus::ui::Screen::openSettings()
+{
     Settings dialog(this, m_state);
 
     dialog.exec();
@@ -200,8 +236,10 @@ void nemus::ui::Screen::openSettings() {
     applySettings();
 }
 
-void nemus::ui::Screen::applySettings() {
-    switch(m_state->getScale()) {
+void nemus::ui::Screen::applySettings()
+{
+    switch (m_state->getScale())
+    {
     case SCALE_1X:
         resize(SCREEN_WIDTH, SCREEN_HEIGHT + SCREEN_OFFSET);
         break;

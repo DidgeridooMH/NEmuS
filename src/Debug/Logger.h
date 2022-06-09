@@ -3,7 +3,7 @@
 
 #include <string>
 #include <fstream>
-#include "../Core/include/ComponentHelper.h"
+#include "../Core/ComponentHelper.h"
 
 #define FILE_BUFFER_SIZE 10000000
 
