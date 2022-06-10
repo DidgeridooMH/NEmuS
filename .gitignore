@@ -45,3 +45,4 @@ builddir/*
 roms/
 subprojects/*
 !subprojects/*.wrap
+.env
