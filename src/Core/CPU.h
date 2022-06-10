@@ -2,7 +2,7 @@
 #define NEMUS_CPU_H
 
 #include "../Debug/Logger.h"
-#include "include/ComponentHelper.h"
+#include "ComponentHelper.h"
 
 namespace nemus::core {
 

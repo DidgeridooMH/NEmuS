@@ -1,14 +1,14 @@
 #include <QApplication>
+#include <memory>
+
 #include "Core/NES.h"
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv)
+{
     QApplication a(argc, argv);
 
-    nemus::NES* nes = new nemus::NES();
-
+    auto nes = std::make_unique<nemus::NES>();
     nes->run();
-
-    delete nes;
 
     return 0;
 }

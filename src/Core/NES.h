@@ -5,20 +5,22 @@
 #include "CPU.h"
 #include "../UI/Screen.h"
 
-namespace nemus {
-    class NES {
+namespace nemus
+{
+    class NES
+    {
     private:
-        core::CPU* m_cpu = nullptr;
+        core::CPU *m_cpu = nullptr;
 
-        core::Input* m_input = nullptr;
+        core::Input *m_input = nullptr;
 
-        core::Memory* m_memory = nullptr;
+        core::Memory *m_memory = nullptr;
 
-        core::PPU* m_ppu = nullptr;
+        core::PPU *m_ppu = nullptr;
 
-        debug::Logger* m_logger = nullptr;
+        debug::Logger *m_logger = nullptr;
 
-        ui::Screen* m_screen = nullptr;
+        ui::Screen *m_screen = nullptr;
 
         bool m_gameLoaded = false;
 
@@ -29,12 +31,10 @@ namespace nemus {
 
         void run();
 
-        void loadGame(std::string filename);
+        void loadGame(const std::vector<char> &gameData);
 
         void reset();
-
     };
 }
-
 
 #endif

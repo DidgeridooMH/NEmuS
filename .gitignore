@@ -40,3 +40,9 @@ lib/
 /NEmuS.vcxproj.filters
 /NEmuS.vcxproj.user
 /Debug
+builddir/*
+.vscode/*
+roms/
+subprojects/*
+!subprojects/*.wrap
+.env
