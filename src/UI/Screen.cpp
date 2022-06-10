@@ -6,12 +6,9 @@
 #include <QMenuBar>
 #include <QPainter>
 #include <QVBoxLayout>
+#include <QMessageBox>
 
-#include <fmt/printf.h>
-#include <fmt/color.h>
-
-#include <quazip.h>
-#include <quazipfile.h>
+#include <Utils/Filesystem.hpp>
 
 #include "Screen.h"
 #include "../Core/NES.h"
@@ -204,85 +201,31 @@ void nemus::ui::Screen::paintEvent(QPaintEvent *)
     }
 }
 
-// TODO: Make loading files and archives helper functions.
 void nemus::ui::Screen::openRom()
 {
-    static constexpr const char *NesFileExtension = ".nes";
-    static constexpr const char *ZipFileExtension = ".zip";
-
     auto filename = QFileDialog::getOpenFileName(
         this, tr("Open Rom"), "", tr("ROM Files (*.nes);;Archive Files (*.zip);;All Files (*)"));
 
     if (filename.length() > 0)
     {
-        std::vector<char> fileContents;
-        if (filename.endsWith(NesFileExtension))
+        try
         {
-            std::ifstream file(filename.toStdString(), std::ios::ate | std::ios::binary);
-            if (file.is_open())
-            {
-                auto size = file.tellg();
-                file.seekg(file.beg);
-
-                fileContents.resize(size);
-                file.read(fileContents.data(), size);
-            }
-            else
-            {
-                // TODO: Make a message box.
-                return;
-            }
+            auto romContents = utils::loadFile(filename);
+            m_nes->loadGame(romContents);
         }
-        else if (filename.endsWith(ZipFileExtension))
+        catch (const utils::FilesystemException &e)
         {
-            QuaZip file(filename);
-            if (!file.open(QuaZip::Mode::mdUnzip))
-            {
-                fmt::print(fmt::fg(fmt::color::tomato), "Unable to open archive: {}\n", filename.toStdString());
-                return;
-            }
-
-            auto fileList = file.getFileNameList();
-            auto romFilename = std::find_if(fileList.begin(), fileList.end(), [](const QString &f)
-                                            { return f.endsWith(NesFileExtension); });
-            if (romFilename != fileList.end())
-            {
-                file.setCurrentFile(*romFilename);
-                QuaZipFile romFile(&file);
-                if (!romFile.open(QIODeviceBase::ReadOnly))
-                {
-                    fmt::print(fmt::fg(fmt::color::tomato), "Unable to open file in archive: {}\n", romFilename->toStdString());
-                    return;
-                }
-                auto romContents = romFile.readAll();
-                fileContents.resize(romContents.size());
-                memcpy(fileContents.data(), romContents.data(), fileContents.size());
-            }
-            else
-            {
-                fmt::print(fmt::fg(fmt::color::tomato), "Cannot find '.nes' file in archive: {}\n", filename.toStdString());
-                return;
-            }
+            QMessageBox(QMessageBox::Icon::Critical,
+                        "File Loading Error",
+                        e.what(), QMessageBox::StandardButton::Ok, this)
+                .exec();
         }
-        else
-        {
-            // TODO: Better logger.
-            fmt::print(fmt::fg(fmt::color::tomato),
-                       "Invalid file extension: {}\n"
-                       "Sorry a better file detection system is not a priority :(\n",
-                       filename.toStdString());
-        }
-
-        m_nes->loadGame(fileContents);
     }
 }
 
 void nemus::ui::Screen::openSettings()
 {
-    Settings dialog(this, m_state);
-
-    dialog.exec();
-
+    Settings(this, m_state).exec();
     applySettings();
 }
 

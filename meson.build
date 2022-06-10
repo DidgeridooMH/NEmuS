@@ -22,7 +22,8 @@ src = [
   'src/Core/Mappers/MMC1.cpp',
   'src/Core/Input.cpp',
   'src/UI/Settings.cpp',
-  'src/UI/Screen.cpp'
+  'src/UI/Screen.cpp',
+  'src/Utils/Filesystem.cpp'
 ]
 
 src += qt.compile_moc(
@@ -32,5 +33,6 @@ src += qt.compile_moc(
 
 executable('NEmuS',
            src,
+           include_directories : ['./src'],
            dependencies : [qt6_dep, quazip_dep, fmt_dep],
            install : true)
