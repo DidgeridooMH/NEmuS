@@ -81,10 +81,6 @@ namespace nemus::core
 
         unsigned char m_oamAddr;
 
-        unsigned char m_ppuScrollX;
-
-        unsigned char m_ppuScrollY;
-
         unsigned int m_oamDMA;
 
         unsigned int m_ppuRegister;
@@ -105,6 +101,7 @@ namespace nemus::core
         uint8_t m_nameTableBuffer;
         uint8_t m_patternLowBuffer;
         uint8_t m_patternHighBuffer;
+        uint32_t m_tileData;
         /*----------------*/
 
         void renderPixel();
@@ -163,7 +160,7 @@ namespace nemus::core
 
         void writePPUData(unsigned int data);
 
-        unsigned int readPPUData();
+        uint8_t ReadPPUData();
 
         void writeOAMDMA(unsigned int data);
 

@@ -21,7 +21,6 @@ nemus::NES::~NES()
     delete m_input;
 }
 
-// TODO: Sync the graphics to the GPU.
 void nemus::NES::run()
 {
     auto frameStart = std::chrono::steady_clock::now();

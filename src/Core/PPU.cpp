@@ -29,15 +29,8 @@ namespace nemus::core
   {
     m_oamAddr = 0;
 
-    m_ppuScrollX = 0;
-
-    m_ppuScrollY = 0;
-
     m_v.addr = 0;
-
     m_t.addr = 0;
-
-    m_ppuRegister = 0;
 
     for (int i = 0; i < 0x100; i++)
     {
@@ -97,89 +90,89 @@ namespace nemus::core
     return address + offset;
   }
 
-  void PPU::renderPixel()
-  {
-    unsigned int scanline = m_scanline + m_ppuScrollY;
+  // void PPU::renderPixel()
+  // {
+  //   unsigned int scanline = m_scanline + m_ppuScrollY;
 
-    unsigned int cycle = m_cycle + m_ppuScrollX;
+  //   unsigned int cycle = m_cycle + m_ppuScrollX;
 
-    int x = (cycle % 256) / 8;
-    int y = (scanline % 240) / 8;
-    int sliver = scanline % 8;
-    int pixel = cycle % 8;
-    int tileNum = x + (y * 32);
+  //   int x = (cycle % 256) / 8;
+  //   int y = (scanline % 240) / 8;
+  //   int sliver = scanline % 8;
+  //   int pixel = cycle % 8;
+  //   int tileNum = x + (y * 32);
 
-    int nameTableAddress = getNameTableAddress(cycle, scanline);
+  //   int nameTableAddress = getNameTableAddress(cycle, scanline);
 
-    int tileID = m_memory->readPPUByte(nameTableAddress + tileNum);
+  //   int tileID = m_memory->readPPUByte(nameTableAddress + tileNum);
 
-    int plane0 = 0, plane1 = 0;
+  //   int plane0 = 0, plane1 = 0;
 
-    if (m_ppuMask.bg_enable)
-    {
-      if (m_ppuCtrl.bg_tile_select)
-      {
-        plane0 = m_memory->readPPUByte(PATTERN_TABLE_1 + (tileID * 0x10) + sliver);
-        plane1 = m_memory->readPPUByte(PATTERN_TABLE_1 + (tileID * 0x10) + sliver + 0x08);
-      }
-      else
-      {
-        plane0 = m_memory->readPPUByte(PATTERN_TABLE_0 + (tileID * 0x10) + sliver);
-        plane1 = m_memory->readPPUByte(PATTERN_TABLE_0 + (tileID * 0x10) + sliver + 0x08);
-      }
+  //   if (m_ppuMask.bg_enable)
+  //   {
+  //     if (m_ppuCtrl.bg_tile_select)
+  //     {
+  //       plane0 = m_memory->readPPUByte(PATTERN_TABLE_1 + (tileID * 0x10) + sliver);
+  //       plane1 = m_memory->readPPUByte(PATTERN_TABLE_1 + (tileID * 0x10) + sliver + 0x08);
+  //     }
+  //     else
+  //     {
+  //       plane0 = m_memory->readPPUByte(PATTERN_TABLE_0 + (tileID * 0x10) + sliver);
+  //       plane1 = m_memory->readPPUByte(PATTERN_TABLE_0 + (tileID * 0x10) + sliver + 0x08);
+  //     }
 
-      int color = 0;
+  //     int color = 0;
 
-      if (m_ppuMask.bg_enable)
-      {
-        color = (plane0 >> (7 - pixel)) & 0x1;
+  //     if (m_ppuMask.bg_enable)
+  //     {
+  //       color = (plane0 >> (7 - pixel)) & 0x1;
 
-        if (pixel < 7)
-        {
-          color |= (plane1 >> (6 - pixel)) & 0x2;
-        }
-        else
-        {
-          color |= (plane1 << 1) & 0x2;
-        }
-      }
+  //       if (pixel < 7)
+  //       {
+  //         color |= (plane1 >> (6 - pixel)) & 0x2;
+  //       }
+  //       else
+  //       {
+  //         color |= (plane1 << 1) & 0x2;
+  //       }
+  //     }
 
-      if (m_ppuMask.sprite_enable)
-      {
-        if (m_spriteScanline[m_cycle] > 0)
-        {
-          for (unsigned int sprite0Pixel : m_sprite0Pixels)
-          {
-            if (m_cycle == sprite0Pixel)
-            {
-              m_hitNextLine = true;
-            }
-          }
+  //     if (m_ppuMask.sprite_enable)
+  //     {
+  //       if (m_spriteScanline[m_cycle] > 0)
+  //       {
+  //         for (unsigned int sprite0Pixel : m_sprite0Pixels)
+  //         {
+  //           if (m_cycle == sprite0Pixel)
+  //           {
+  //             m_hitNextLine = true;
+  //           }
+  //         }
 
-          color = m_spriteScanline[m_cycle];
-        }
-      }
+  //         color = m_spriteScanline[m_cycle];
+  //       }
+  //     }
 
-      unsigned int videoAddress = m_cycle + (m_scanline * SCREEN_WIDTH);
-      videoAddress %= SCREEN_WIDTH * SCREEN_HEIGHT;
+  //     unsigned int videoAddress = m_cycle + (m_scanline * SCREEN_WIDTH);
+  //     videoAddress %= SCREEN_WIDTH * SCREEN_HEIGHT;
 
-      switch (color)
-      {
-      case 0:
-        m_backBuffer[videoAddress] = PPU_COLOR_BLACK;
-        break;
-      case 1:
-        m_backBuffer[videoAddress] = PPU_COLOR_RED;
-        break;
-      case 2:
-        m_backBuffer[videoAddress] = PPU_COLOR_BLUE;
-        break;
-      case 3:
-        m_backBuffer[videoAddress] = PPU_COLOR_WHITE;
-        break;
-      }
-    }
-  }
+  //     switch (color)
+  //     {
+  //     case 0:
+  //       m_backBuffer[videoAddress] = PPU_COLOR_BLACK;
+  //       break;
+  //     case 1:
+  //       m_backBuffer[videoAddress] = PPU_COLOR_RED;
+  //       break;
+  //     case 2:
+  //       m_backBuffer[videoAddress] = PPU_COLOR_BLUE;
+  //       break;
+  //     case 3:
+  //       m_backBuffer[videoAddress] = PPU_COLOR_WHITE;
+  //       break;
+  //     }
+  //   }
+  // }
 
   // void PPU::tick()
   // {
@@ -237,74 +230,103 @@ namespace nemus::core
   // TODO: Skipped cycle on (0, 0) with background rendering on on odd frame.
   void PPU::tick()
   {
-    // Visible scanline.
-    if (m_scanline < 240)
-    {
-      // Pixels 257-320 are idle frames.
-      if (m_cycle <= 256 || m_cycle > 320)
+    if (m_ppuMask.bg_enable || m_ppuMask.sprite_enable)
+    { // Visible scanline.
+      if (m_scanline < 240 || m_scanline == MaxScanlines())
       {
-        auto operation = (m_cycle - 1) % 8;
-        switch (operation)
+        // Pixels 257-320 are idle frames.
+        if (m_cycle <= 256 || m_cycle > 320)
         {
-        case 1:
-          /*
-           * Name table fetch only uses the lower 12 bits of v
-           * as an offset into 0x2000 (the name table locations).
-           */
-          m_nameTableBuffer = m_memory->readPPUByte((m_v.addr & 0xFFF) | 0x2000);
-          break;
-        case 3:
-          /*
-           * Attribute table works with 4x4 chunks so shift the coarse scroll
-           * components by 2.
-           */
-          if (m_cycle != 339)
+          if (m_cycle < 256)
           {
-            // 10 NN11 11YY YXXX
-            uint16_t x = m_v.r.coarseXScroll >> 2;
-            uint16_t y = m_v.r.coarseYScroll >> 2;
-            uint16_t attributeAddress = 0x23C0 | m_v.r.nameTableSelect << 10 | (y << 3) | x;
-            m_attributeBuffer = m_memory->readPPUByte(attributeAddress);
+            m_tileData >>= 2;
           }
-          break;
-        case 5:
-          /*
-           * 0Hnnnnnnnn0yyy
-           * H: pattern table selection.
-           * n: nametable byte
-           * y: fine y scroll
-           */
-          m_patternLowBuffer = m_memory->readPPUByte(
-              (static_cast<uint16_t>(m_ppuCtrl.sprite_select) << 12) |
-              (m_nameTableBuffer << 4) |
-              m_v.r.fineYScroll);
-          break;
-        case 7:
-          // Same as above but the bit plane at bit 3 is high.
-          m_patternHighBuffer = m_memory->readPPUByte(
-              (static_cast<uint16_t>(m_ppuCtrl.sprite_select) << 12) |
-              (m_nameTableBuffer << 4) |
-              0x80 | m_v.r.fineYScroll);
-          // Increment the coordinates.
-          if (m_cycle != 256)
+          switch (m_cycle % 8)
           {
+          case 0:
+            // TODO: Maybe need X scrolling?
+            for (auto i = 0; i < 8; i++)
+            {
+              m_tileData <<= 1;
+              m_tileData |= (m_patternHighBuffer >> i) & 1;
+              m_tileData <<= 1;
+              m_tileData |= (m_patternLowBuffer >> i) & 1;
+            }
             IncrementX();
-          }
-          else
+            break;
+          case 1:
+            /*
+             * Name table fetch only uses the lower 12 bits of v
+             * as an offset into 0x2000 (the name table locations).
+             */
+            m_nameTableBuffer = m_memory->readPPUByte((m_v.addr & 0xFFF) | 0x2000);
+            break;
+          case 3:
+            /*
+             * Attribute table works with 4x4 chunks so shift the coarse scroll
+             * components by 2.
+             */
+            if (m_cycle != 339)
+            {
+              // 10 NN11 11YY YXXX
+              uint16_t x = m_v.r.coarseXScroll >> 2;
+              uint16_t y = m_v.r.coarseYScroll >> 2;
+              uint16_t attributeAddress = 0x23C0 | m_v.r.nameTableSelect << 10 | (y << 3) | x;
+              m_attributeBuffer = m_memory->readPPUByte(attributeAddress);
+            }
+            break;
+          case 5:
           {
-            IncrementY();
+            /*
+             * 0Hnnnnnnnn0yyy
+             * H: pattern table selection.
+             * n: nametable byte
+             * y: fine y scroll
+             */
+            auto patternTableAddress =
+                (static_cast<uint16_t>(m_ppuCtrl.bg_tile_select) << 12) |
+                (m_nameTableBuffer << 4) |
+                m_v.r.fineYScroll;
+            m_patternLowBuffer = m_memory->readPPUByte(patternTableAddress);
+            break;
           }
-          break;
-        default:
-          break;
+          case 7:
+          {
+            // Same as above but the bit plane at bit 3 is high.
+            auto patternTableAddress = (static_cast<uint16_t>(m_ppuCtrl.bg_tile_select) << 12) |
+                                       (m_nameTableBuffer << 4) |
+                                       0x8 | m_v.r.fineYScroll;
+            m_patternHighBuffer = m_memory->readPPUByte(patternTableAddress);
+            break;
+          }
+          default:
+            break;
+          }
+        }
+
+        if (m_cycle == 256)
+        {
+          IncrementY();
+        }
+        else if (m_cycle == 257)
+        {
+          // Reload the X scroll at the end of the scanline.
+          m_v.r.coarseXScroll = m_t.r.coarseXScroll;
+          m_v.r.nameTableSelect = (m_t.r.nameTableSelect & 1) | (m_v.r.nameTableSelect & 0b10);
         }
       }
-    }
 
-    // Reload the X scroll at the end of the scanline.
-    if (m_cycle == 257)
-    {
-      m_v.r.coarseXScroll = m_t.r.coarseXScroll;
+      if (m_cycle > 0 && m_cycle <= 256 && m_scanline < 240)
+      {
+        uint32_t pixel = 0U;
+        if (m_ppuMask.bg_enable)
+        {
+          pixel = FetchBackgroundPixel();
+        }
+
+        // TODO: SCREEN_WIDTH should be constexpr
+        m_backBuffer[m_cycle - 1 + m_scanline * SCREEN_WIDTH] = pixel;
+      }
     }
 
     // Reload Y scroll at the end of the frame.
@@ -312,6 +334,7 @@ namespace nemus::core
     {
       m_v.r.coarseYScroll = m_t.r.coarseYScroll;
       m_v.r.fineYScroll = m_t.r.fineYScroll;
+      m_v.r.nameTableSelect = (m_t.r.nameTableSelect & 0b10) | (m_v.r.nameTableSelect & 1);
     }
 
     // Flags for VBlank, etc. are made on Cycle 1 instead of 0.
@@ -332,14 +355,6 @@ namespace nemus::core
         m_ppuStatus.vblank = false;
         m_ppuStatus.sprite_overflow = false;
       }
-    }
-
-    if (m_cycle < 256 && m_scanline < 240)
-    {
-      auto pixel = FetchBackgroundPixel();
-
-      // TODO: SCREEN_WIDTH should be constexpr
-      m_backBuffer[m_cycle + m_scanline * SCREEN_WIDTH] = pixel;
     }
 
     // Increment the coordinates that we're emulating.
@@ -377,26 +392,17 @@ namespace nemus::core
 
   uint32_t PPU::FetchBackgroundPixel()
   {
-    auto plane0 = (m_patternLowBuffer >> (7 - m_fineXScroll)) & 1;
-    auto plane1 = (m_patternHighBuffer >> (7 - m_fineXScroll)) & 1;
-
-    uint32_t color;
-    switch (plane0 | plane1 << 1)
+    switch (m_tileData & 0x3)
     {
     case 0:
-      color = PPU_COLOR_BLACK;
-      break;
+      return PPU_COLOR_BLACK;
     case 1:
-      color = PPU_COLOR_RED;
-      break;
+      return PPU_COLOR_RED;
     case 2:
-      color = PPU_COLOR_BLUE;
-      break;
+      return PPU_COLOR_BLUE;
     default:
-      color = PPU_COLOR_WHITE;
-      break;
+      return PPU_COLOR_WHITE;
     }
-    return color;
   }
 
   void PPU::evaluateSprites()
@@ -543,7 +549,7 @@ namespace nemus::core
     case 0x2004:
       return readOAMData();
     case 0x2007:
-      return readPPUData();
+      return ReadPPUData();
     case 0x4014:
       break;
     }
@@ -637,13 +643,18 @@ namespace nemus::core
     m_v.addr &= 0x3FFF;
   }
 
-  // TODO: Emulate the buffered data.
-  unsigned int PPU::readPPUData()
+  uint8_t PPU::ReadPPUData()
   {
-    unsigned int value = m_memory->readPPUByte(m_v.addr);
-    unsigned char ret = m_dataBuffer;
+    uint8_t value = m_memory->readPPUByte(m_v.addr);
 
-    m_dataBuffer = value;
+    if (m_v.addr % 0x4000 < 0x3F00)
+    {
+      std::swap(m_dataBuffer, value);
+    }
+    else
+    {
+      m_dataBuffer = m_memory->readPPUByte(m_v.addr - 0x1000);
+    }
 
     if (!m_ppuCtrl.inc_mode)
     {
@@ -654,12 +665,7 @@ namespace nemus::core
       m_v.addr += 32;
     }
 
-    if (m_v.addr > 0x3EFF)
-    {
-      ret = value;
-    }
-
-    return ret;
+    return value;
   }
 
   void PPU::writePPUScroll(uint8_t data)

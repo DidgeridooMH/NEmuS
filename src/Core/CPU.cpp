@@ -1,12 +1,13 @@
 #include <sstream>
 #include <QMessageBox>
+
+#include <Core/Opcodes.hpp>
+
 #include "CPU.h"
 #include "Memory.h"
 
 nemus::core::CPU::CPU(Memory *memory, debug::Logger *logger)
 {
-    generateOP();
-
     resetRegisters();
 
     m_interrupt = comp::INT_NONE;
@@ -254,7 +255,7 @@ int nemus::core::CPU::tick()
         auto address = m_reg.pc;
         pageCycle = !m_flags.N;
         branch(!m_flags.N);
-        pageCycle += ((address & 0xFF00) != m_reg.pc + m_opsize[op]) * 2;
+        pageCycle += ((address & 0xFF00) != m_reg.pc + INSTRUCTION_SIZES[op]) * 2;
         break;
     }
     case 0x30:
@@ -262,7 +263,7 @@ int nemus::core::CPU::tick()
         auto address = m_reg.pc;
         pageCycle = m_flags.N;
         branch(m_flags.N);
-        pageCycle += ((address & 0xFF00) != m_reg.pc + m_opsize[op]) * 2;
+        pageCycle += ((address & 0xFF00) != m_reg.pc + INSTRUCTION_SIZES[op]) * 2;
         break;
     }
     case 0x50:
@@ -270,7 +271,7 @@ int nemus::core::CPU::tick()
         auto address = m_reg.pc;
         pageCycle = !m_flags.V;
         branch(!m_flags.V);
-        pageCycle += ((address & 0xFF00) != m_reg.pc + m_opsize[op]) * 2;
+        pageCycle += ((address & 0xFF00) != m_reg.pc + INSTRUCTION_SIZES[op]) * 2;
         break;
     }
     case 0x70:
@@ -278,7 +279,7 @@ int nemus::core::CPU::tick()
         auto address = m_reg.pc;
         pageCycle = m_flags.V;
         branch(m_flags.V);
-        pageCycle += ((address & 0xFF00) != m_reg.pc + m_opsize[op]) * 2;
+        pageCycle += ((address & 0xFF00) != m_reg.pc + INSTRUCTION_SIZES[op]) * 2;
         break;
     }
     case 0x90:
@@ -286,7 +287,7 @@ int nemus::core::CPU::tick()
         auto address = m_reg.pc;
         pageCycle = !m_flags.C;
         branch(!m_flags.C);
-        pageCycle += ((address & 0xFF00) != m_reg.pc + m_opsize[op]) * 2;
+        pageCycle += ((address & 0xFF00) != m_reg.pc + INSTRUCTION_SIZES[op]) * 2;
         break;
     }
     case 0xB0:
@@ -294,7 +295,7 @@ int nemus::core::CPU::tick()
         auto address = m_reg.pc;
         pageCycle = m_flags.C;
         branch(m_flags.C);
-        pageCycle += ((address & 0xFF00) != m_reg.pc + m_opsize[op]) * 2;
+        pageCycle += ((address & 0xFF00) != m_reg.pc + INSTRUCTION_SIZES[op]) * 2;
         break;
     }
     case 0xD0:
@@ -302,7 +303,7 @@ int nemus::core::CPU::tick()
         auto address = m_reg.pc;
         pageCycle = !m_flags.Z;
         branch(!m_flags.Z);
-        pageCycle += ((address & 0xFF00) != m_reg.pc + m_opsize[op]) * 2;
+        pageCycle += ((address & 0xFF00) != m_reg.pc + INSTRUCTION_SIZES[op]) * 2;
         break;
     }
     case 0xF0:
@@ -310,7 +311,7 @@ int nemus::core::CPU::tick()
         auto address = m_reg.pc;
         pageCycle = m_flags.Z;
         branch(m_flags.Z);
-        pageCycle += ((address & 0xFF00) != m_reg.pc + m_opsize[op]) * 2;
+        pageCycle += ((address & 0xFF00) != m_reg.pc + INSTRUCTION_SIZES[op]) * 2;
         break;
     }
 
@@ -806,18 +807,18 @@ int nemus::core::CPU::tick()
         break;
 
     default:
-        m_logger->writeError(m_opcodes[op], m_reg.pc);
+        m_logger->writeError(OPCODES[op], m_reg.pc);
         std::stringstream msg;
-        msg << "Unknown opcode $" << std::hex << op << ":" << m_opcodes[op] << " at $" << m_reg.pc;
+        msg << "Unknown opcode $" << std::hex << op << ":" << OPCODES[op] << " at $" << m_reg.pc;
         QMessageBox *msg_box = new QMessageBox(QMessageBox::Critical, "Unimplemented Opcode", msg.str().c_str(), QMessageBox::StandardButton::Ok);
         msg_box->exec();
         m_running = false;
         return 0;
     }
 
-    m_reg.pc += m_opsize[op];
+    m_reg.pc += INSTRUCTION_SIZES[op];
 
-    return m_cyclesTable[op] + pageCycle;
+    return CYCLES[op] + pageCycle;
 }
 
 void nemus::core::CPU::interrupt()
@@ -860,575 +861,6 @@ void nemus::core::CPU::interrupt()
         break;
     case comp::INT_NONE:
         break;
-    }
-}
-
-void nemus::core::CPU::generateOP()
-{
-    std::string opcodes[256] = {"BRK", "ORA", "KIL", "SLO", "NOP", "ORA", "ASL", "SLO",
-                                "PHP", "ORA", "ASL", "ANC", "NOP", "ORA", "ASL", "SLO",
-                                "BPL", "ORA", "KIL", "SLO", "NOP", "ORA", "ASL", "SLO",
-                                "CLC", "ORA", "NOP", "SLO", "NOP", "ORA", "ASL", "SLO",
-                                "JSR", "AND", "KIL", "RLA", "BIT", "AND", "ROL", "RLA",
-                                "PLP", "AND", "ROL", "ANC", "BIT", "AND", "ROL", "RLA",
-                                "BMI", "AND", "KIL", "RLA", "NOP", "AND", "ROL", "RLA",
-                                "SEC", "AND", "NOP", "RLA", "NOP", "AND", "ROL", "RLA",
-                                "RTI", "EOR", "KIL", "SRE", "NOP", "EOR", "LSR", "SRE",
-                                "PHA", "EOR", "LSR", "ALR", "JMP", "EOR", "LSR", "SRE",
-                                "BVC", "EOR", "KIL", "SRE", "NOP", "EOR", "LSR", "SRE",
-                                "CLI", "EOR", "NOP", "SRE", "NOP", "EOR", "LSR", "SRE",
-                                "RTS", "ADC", "KIL", "RRA", "NOP", "ADC", "ROR", "RRA",
-                                "PLA", "ADC", "ROR", "ARR", "JMP", "ADC", "ROR", "RRA",
-                                "BVS", "ADC", "KIL", "RRA", "NOP", "ADC", "ROR", "RRA",
-                                "SEI", "ADC", "NOP", "RRA", "NOP", "ADC", "ROR", "RRA",
-                                "NOP", "STA", "NOP", "SAX", "STY", "STA", "STX", "SAX",
-                                "DEY", "NOP", "TXA", "XAA", "STY", "STA", "STX", "SAX",
-                                "BCC", "STA", "KIL", "AHX", "STY", "STA", "STX", "SAX",
-                                "TYA", "STA", "TXS", "TAS", "SHY", "STA", "SHX", "AHX",
-                                "LDY", "LDA", "LDX", "LAX", "LDY", "LDA", "LDX", "LAX",
-                                "TAY", "LDA", "TAX", "LAX", "LDY", "LDA", "LDX", "LAX",
-                                "BCS", "LDA", "KIL", "LAX", "LDY", "LDA", "LDX", "LAX",
-                                "CLV", "LDA", "TSX", "LAS", "LDY", "LDA", "LDX", "LAX",
-                                "CPY", "CMP", "NOP", "DCP", "CPY", "CMP", "DEC", "DCP",
-                                "INY", "CMP", "DEX", "AXS", "CPY", "CMP", "DEC", "DCP",
-                                "BNE", "CMP", "KIL", "DCP", "NOP", "CMP", "DEC", "DCP",
-                                "CLD", "CMP", "NOP", "DCP", "NOP", "CMP", "DEC", "DCP",
-                                "CPX", "SBC", "NOP", "ISC", "CPX", "SBC", "INC", "ISC",
-                                "INX", "SBC", "NOP", "SBC", "CPX", "SBC", "INC", "ISC",
-                                "BEQ", "SBC", "KIL", "ISC", "NOP", "SBC", "INC", "ISC",
-                                "SED", "SBC", "NOP", "ISC", "NOP", "SBC", "INC", "ISC"};
-
-    for (int i = 0; i < 256; i++)
-    {
-        m_opcodes[i] = opcodes[i];
-    }
-
-    int instructionSizes[256] = {
-        1,
-        2,
-        0,
-        2,
-        2,
-        2,
-        2,
-        2,
-        1,
-        2,
-        1,
-        2,
-        3,
-        3,
-        3,
-        3,
-        2,
-        2,
-        0,
-        2,
-        2,
-        2,
-        2,
-        2,
-        1,
-        3,
-        1,
-        3,
-        3,
-        3,
-        3,
-        3,
-        3,
-        2,
-        0,
-        2,
-        2,
-        2,
-        2,
-        2,
-        1,
-        2,
-        1,
-        2,
-        3,
-        3,
-        3,
-        3,
-        2,
-        2,
-        0,
-        2,
-        2,
-        2,
-        2,
-        2,
-        1,
-        3,
-        1,
-        3,
-        3,
-        3,
-        3,
-        3,
-        1,
-        2,
-        0,
-        2,
-        2,
-        2,
-        2,
-        2,
-        1,
-        2,
-        1,
-        2,
-        3,
-        3,
-        3,
-        3,
-        2,
-        2,
-        0,
-        2,
-        2,
-        2,
-        2,
-        2,
-        1,
-        3,
-        1,
-        3,
-        3,
-        3,
-        3,
-        3,
-        1,
-        2,
-        0,
-        2,
-        2,
-        2,
-        2,
-        2,
-        1,
-        2,
-        1,
-        2,
-        3,
-        3,
-        3,
-        3,
-        2,
-        2,
-        0,
-        2,
-        2,
-        2,
-        2,
-        2,
-        1,
-        3,
-        1,
-        3,
-        3,
-        3,
-        3,
-        3,
-        2,
-        2,
-        0,
-        2,
-        2,
-        2,
-        2,
-        2,
-        1,
-        0,
-        1,
-        2,
-        3,
-        3,
-        3,
-        3,
-        2,
-        2,
-        0,
-        2,
-        2,
-        2,
-        2,
-        2,
-        1,
-        3,
-        1,
-        3,
-        0,
-        3,
-        0,
-        3,
-        2,
-        2,
-        2,
-        2,
-        2,
-        2,
-        2,
-        2,
-        1,
-        2,
-        1,
-        2,
-        3,
-        3,
-        3,
-        3,
-        2,
-        2,
-        0,
-        2,
-        2,
-        2,
-        2,
-        2,
-        1,
-        3,
-        1,
-        3,
-        3,
-        3,
-        3,
-        3,
-        2,
-        2,
-        0,
-        2,
-        2,
-        2,
-        2,
-        2,
-        1,
-        2,
-        1,
-        2,
-        3,
-        3,
-        3,
-        3,
-        2,
-        2,
-        0,
-        2,
-        2,
-        2,
-        2,
-        2,
-        1,
-        3,
-        1,
-        3,
-        3,
-        3,
-        3,
-        3,
-        2,
-        2,
-        0,
-        2,
-        2,
-        2,
-        2,
-        2,
-        1,
-        2,
-        1,
-        2,
-        3,
-        3,
-        3,
-        3,
-        2,
-        2,
-        0,
-        2,
-        2,
-        2,
-        2,
-        2,
-        1,
-        3,
-        1,
-        3,
-        3,
-        3,
-        3,
-        3,
-    };
-
-    for (int i = 0; i < 256; i++)
-    {
-        m_opsize[i] = instructionSizes[i];
-    }
-
-    int cyclesTable[256] = {
-        7,
-        6,
-        2,
-        8,
-        3,
-        3,
-        5,
-        5,
-        3,
-        2,
-        2,
-        2,
-        4,
-        4,
-        6,
-        6,
-        2,
-        5,
-        2,
-        8,
-        4,
-        4,
-        6,
-        6,
-        2,
-        4,
-        2,
-        7,
-        4,
-        4,
-        7,
-        7,
-        6,
-        6,
-        2,
-        8,
-        3,
-        3,
-        5,
-        5,
-        4,
-        2,
-        2,
-        2,
-        4,
-        4,
-        6,
-        6,
-        2,
-        5,
-        2,
-        8,
-        4,
-        4,
-        6,
-        6,
-        2,
-        4,
-        2,
-        7,
-        4,
-        4,
-        7,
-        7,
-        6,
-        6,
-        2,
-        8,
-        3,
-        3,
-        5,
-        5,
-        3,
-        2,
-        2,
-        2,
-        3,
-        4,
-        6,
-        6,
-        2,
-        5,
-        2,
-        8,
-        4,
-        4,
-        6,
-        6,
-        2,
-        4,
-        2,
-        7,
-        4,
-        4,
-        7,
-        7,
-        6,
-        6,
-        2,
-        8,
-        3,
-        3,
-        5,
-        5,
-        4,
-        2,
-        2,
-        2,
-        5,
-        4,
-        6,
-        6,
-        2,
-        5,
-        2,
-        8,
-        4,
-        4,
-        6,
-        6,
-        2,
-        4,
-        2,
-        7,
-        4,
-        4,
-        7,
-        7,
-        2,
-        6,
-        2,
-        6,
-        3,
-        3,
-        3,
-        3,
-        2,
-        2,
-        2,
-        2,
-        4,
-        4,
-        4,
-        4,
-        2,
-        6,
-        2,
-        6,
-        4,
-        4,
-        4,
-        4,
-        2,
-        5,
-        2,
-        5,
-        5,
-        5,
-        5,
-        5,
-        2,
-        6,
-        2,
-        6,
-        3,
-        3,
-        3,
-        3,
-        2,
-        2,
-        2,
-        2,
-        4,
-        4,
-        4,
-        4,
-        2,
-        5,
-        2,
-        5,
-        4,
-        4,
-        4,
-        4,
-        2,
-        4,
-        2,
-        4,
-        4,
-        4,
-        4,
-        4,
-        2,
-        6,
-        2,
-        8,
-        3,
-        3,
-        5,
-        5,
-        2,
-        2,
-        2,
-        2,
-        4,
-        4,
-        6,
-        6,
-        2,
-        5,
-        2,
-        8,
-        4,
-        4,
-        6,
-        6,
-        2,
-        4,
-        2,
-        7,
-        4,
-        4,
-        7,
-        7,
-        2,
-        6,
-        2,
-        8,
-        3,
-        3,
-        5,
-        5,
-        2,
-        2,
-        2,
-        2,
-        4,
-        4,
-        6,
-        6,
-        2,
-        5,
-        2,
-        8,
-        4,
-        4,
-        6,
-        6,
-        2,
-        4,
-        2,
-        7,
-        4,
-        4,
-        7,
-        7,
-    };
-
-    for (int i = 0; i < 256; i++)
-    {
-        m_cyclesTable[i] = cyclesTable[i];
     }
 }
 

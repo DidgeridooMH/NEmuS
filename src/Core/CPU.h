@@ -4,26 +4,22 @@
 #include "../Debug/Logger.h"
 #include "ComponentHelper.h"
 
-namespace nemus::core {
+namespace nemus::core
+{
 
     class Memory;
 
-    class CPU {
+    class CPU
+    {
     private:
         bool m_running;
-
-        // Instructions table
-        std::string m_opcodes[256];
-
-        int m_opsize[256];
-
-        int m_cyclesTable[256];
 
         comp::Registers m_reg;
 
         comp::Interrupt m_interrupt;
 
-        struct {
+        struct
+        {
             bool N;
             bool Z;
             bool C;
@@ -33,11 +29,9 @@ namespace nemus::core {
             bool V;
         } m_flags;
 
-        Memory* m_memory = nullptr;
+        Memory *m_memory = nullptr;
 
-        debug::Logger* m_logger;
-
-        void generateOP();
+        debug::Logger *m_logger;
 
         void resetRegisters();
 
@@ -96,7 +90,7 @@ namespace nemus::core {
         void interrupt();
 
     public:
-        CPU(Memory* memory, debug::Logger* logger);
+        CPU(Memory *memory, debug::Logger *logger);
 
         int tick();
 
@@ -106,6 +100,5 @@ namespace nemus::core {
     };
 
 }
-
 
 #endif
