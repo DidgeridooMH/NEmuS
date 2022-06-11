@@ -8,24 +8,34 @@
 #define PATTERN_TABLE_1 0x1000
 
 #define PPU_COLOR_BLACK 0x00000000;
-#define PPU_COLOR_BLUE  0xFF0000FF;
-#define PPU_COLOR_RED   0xFFFF0000;
+#define PPU_COLOR_BLUE 0xFF0000FF;
+#define PPU_COLOR_RED 0xFFFF0000;
 #define PPU_COLOR_WHITE 0xFFFFFFFF;
 
-namespace nemus::core {
-    struct OAMEntry {
+namespace nemus::core
+{
+    struct OAMEntry
+    {
         unsigned int id;
         unsigned int y;
         unsigned int index;
         unsigned int attributes;
         unsigned int x;
     };
+    struct AddressRegister
+    {
+        uint16_t coarseXScroll : 5;
+        uint16_t coarseYScroll : 5;
+        uint16_t nameTableSelect : 2;
+        uint16_t fineYScroll : 3;
+    };
 
-    class PPU {
+    class PPU
+    {
     private:
-        CPU* m_cpu = nullptr;
+        CPU *m_cpu = nullptr;
 
-        Memory* m_memory = nullptr;
+        Memory *m_memory = nullptr;
 
         unsigned int *m_frontBuffer = nullptr;
         unsigned int *m_backBuffer = nullptr;
@@ -39,24 +49,22 @@ namespace nemus::core {
 
         std::vector<unsigned int> m_sprite0Pixels;
 
-        unsigned int m_cycle = 0;
-
-        unsigned int m_scanline = 0;
-
         unsigned char m_dataBuffer = 0;
 
-        struct {
+        struct
+        {
             bool nmi;
             bool master_slave;
             bool sprite_height;
             bool bg_tile_select;
             bool sprite_select;
             bool inc_mode;
-            int  name_select;
+            int name_select;
         } m_ppuCtrl;
 
-        struct {
-            int  color_emph;
+        struct
+        {
+            int color_emph;
             bool sprite_enable;
             bool bg_enable;
             bool slc_enable;
@@ -64,7 +72,8 @@ namespace nemus::core {
             bool greyscale;
         } m_ppuMask;
 
-        struct {
+        struct
+        {
             bool vblank;
             bool s0_hit;
             bool sprite_overflow;
@@ -76,17 +85,27 @@ namespace nemus::core {
 
         unsigned char m_ppuScrollY;
 
-        unsigned int m_ppuAddr;
-
-        unsigned int m_ppuTmpAddr;
-
         unsigned int m_oamDMA;
 
         unsigned int m_ppuRegister;
 
         unsigned char m_oamTransfer;
 
-        bool m_addressLatch = false;
+        /*----------------*/
+        union
+        {
+            uint16_t addr;
+            AddressRegister r;
+        } m_v, m_t;
+        uint8_t m_fineXScroll;
+        bool m_writeLatch;
+        uint16_t m_cycle;
+        uint16_t m_scanline;
+        uint8_t m_attributeBuffer;
+        uint8_t m_nameTableBuffer;
+        uint8_t m_patternLowBuffer;
+        uint8_t m_patternHighBuffer;
+        /*----------------*/
 
         void renderPixel();
 
@@ -95,19 +114,28 @@ namespace nemus::core {
         int getNameTableAddress(unsigned cycle, unsigned scanline);
 
     public:
+        static constexpr uint16_t MaxCycles() { return 340U; }
+        static constexpr uint16_t MaxScanlines() { return 261U; }
+
         PPU();
 
         ~PPU();
 
         void reset();
 
-        void setCPU(nemus::core::CPU* cpu) { m_cpu = cpu; }
+        void setCPU(nemus::core::CPU *cpu) { m_cpu = cpu; }
 
-        void setMemory(nemus::core::Memory* memory) { m_memory = memory; }
+        void setMemory(nemus::core::Memory *memory) { m_memory = memory; }
 
         void tick();
 
-        unsigned int* getPixels() { return m_frontBuffer; };
+        void IncrementX();
+
+        void IncrementY();
+
+        uint32_t FetchBackgroundPixel();
+
+        unsigned int *getPixels() { return m_frontBuffer; };
 
         void writePPU(unsigned int data, unsigned int address);
 
@@ -129,9 +157,9 @@ namespace nemus::core {
 
         unsigned int readOAMData();
 
-        void writePPUScroll(unsigned int data);
+        void writePPUScroll(uint8_t data);
 
-        void writePPUAddr(unsigned int data);
+        void writePPUAddr(uint8_t data);
 
         void writePPUData(unsigned int data);
 

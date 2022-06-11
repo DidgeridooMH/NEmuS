@@ -1,3 +1,7 @@
+#include <chrono>
+#include <thread>
+#include <fmt/printf.h>
+
 #include "NES.h"
 
 nemus::NES::NES()
@@ -17,9 +21,11 @@ nemus::NES::~NES()
     delete m_input;
 }
 
+// TODO: Sync the graphics to the GPU.
 void nemus::NES::run()
 {
-    const double clockRatio = 1788908.0 / 60.0;
+    auto frameStart = std::chrono::steady_clock::now();
+    constexpr double cpuPerFrame = 29780.5;
     int updateCounter = 0;
 
     while (!m_screen->getQuit())
@@ -33,12 +39,20 @@ void nemus::NES::run()
                 m_ppu->tick();
             }
 
-            updateCounter += cycles * 3;
-
-            if (static_cast<long>(updateCounter) > (clockRatio))
+            updateCounter += cycles;
+            if (static_cast<long>(updateCounter) > cpuPerFrame)
             {
                 m_screen->updateFPS();
                 m_screen->updateWindow();
+                int64_t frameDelta = 0L;
+                do
+                {
+                    auto frameEnd = std::chrono::steady_clock::now();
+                    auto frameTime = std::chrono::duration_cast<std::chrono::microseconds>(frameEnd - frameStart).count();
+                    frameDelta = 16000L - frameTime;
+                    std::this_thread::yield();
+                } while (frameDelta > 0L);
+                frameStart = std::chrono::steady_clock::now();
 
                 updateCounter = 0;
             }
