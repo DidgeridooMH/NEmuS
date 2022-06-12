@@ -199,25 +199,42 @@ namespace nemus::core
       if (m_scanline < 240 || m_scanline == MaxScanlines())
       {
         // Pixels 257-320 are idle frames.
-        if (m_cycle <= 256 || m_cycle > 320)
+        if ((m_cycle > 0 && m_cycle <= 256) || m_cycle > 320)
         {
-          if (m_cycle < 256)
+          if (m_scanline < 240)
           {
-            m_tileData >>= 2;
+            uint32_t pixel = 0U;
+            if (m_ppuMask.bg_enable)
+            {
+              pixel = FetchBackgroundPixel();
+            }
+
+            // TODO: SCREEN_WIDTH should be constexpr
+            m_frameBuffers[m_activeBuffer][m_cycle - 1 + m_scanline * SCREEN_WIDTH] = pixel;
           }
+
+          if (m_cycle < 337)
+          {
+            m_tileData <<= 2;
+          }
+
           switch (m_cycle % 8)
           {
           case 0:
+          {
             // TODO: Maybe need X scrolling?
+            uint32_t tile = 0;
             for (auto i = 0; i < 8; i++)
             {
-              m_tileData <<= 1;
-              m_tileData |= (m_patternHighBuffer >> i) & 1;
-              m_tileData <<= 1;
-              m_tileData |= (m_patternLowBuffer >> i) & 1;
+              tile <<= 1;
+              tile |= (m_patternHighBuffer >> (7 - i)) & 1;
+              tile <<= 1;
+              tile |= (m_patternLowBuffer >> (7 - i)) & 1;
             }
+            m_tileData |= tile;
             IncrementX();
             break;
+          }
           case 1:
             /*
              * Name table fetch only uses the lower 12 bits of v
@@ -278,18 +295,6 @@ namespace nemus::core
           m_v.r.coarseXScroll = m_t.r.coarseXScroll;
           m_v.r.nameTableSelect = (m_t.r.nameTableSelect & 1) | (m_v.r.nameTableSelect & 0b10);
         }
-      }
-
-      if (m_cycle > 0 && m_cycle <= 256 && m_scanline < 240)
-      {
-        uint32_t pixel = 0U;
-        if (m_ppuMask.bg_enable)
-        {
-          pixel = FetchBackgroundPixel();
-        }
-
-        // TODO: SCREEN_WIDTH should be constexpr
-        m_frameBuffers[m_activeBuffer][m_cycle - 1 + m_scanline * SCREEN_WIDTH] = pixel;
       }
     }
 
@@ -356,7 +361,7 @@ namespace nemus::core
 
   uint32_t PPU::FetchBackgroundPixel()
   {
-    switch (m_tileData & 0x3)
+    switch ((m_tileData >> (30 - (m_fineXScroll * 2))) & 3)
     {
     case 0:
       return PPU_COLOR_BLACK;
