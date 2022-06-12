@@ -164,9 +164,13 @@ void nemus::ui::Screen::create_menu()
     m_patternTableAction = std::make_unique<QAction>(tr("Show Pattern Tables"), this);
     connect(m_patternTableAction.get(), &QAction::triggered, this, &Screen::CreatePatternTableViewer);
 
+    m_ppuDumpAction = std::make_unique<QAction>(tr("Dump PPU"), this);
+    connect(m_ppuDumpAction.get(), &QAction::triggered, this, &Screen::DumpPPUMemory);
+
     m_debugMenu = menuBar()->addMenu(tr("Debug"));
     m_debugMenu->addAction(m_pauseAction.get());
     m_debugMenu->addAction(m_patternTableAction.get());
+    m_debugMenu->addAction(m_ppuDumpAction.get());
 }
 
 void nemus::ui::Screen::closeEvent(QCloseEvent *event)
@@ -267,4 +271,14 @@ void nemus::ui::Screen::SetPauseState()
 void nemus::ui::Screen::CreatePatternTableViewer()
 {
     m_patternTableViewer = std::make_unique<PatternTableViewer>(m_ppu->GetMemory(), nullptr);
+}
+
+void nemus::ui::Screen::DumpPPUMemory()
+{
+    auto filename = QFileDialog::getSaveFileName(
+        this, tr("Save PPU Dump"), "", tr("Dump Files (*.hex);;All Files (*)"));
+    if (filename.length() > 0)
+    {
+        m_ppu->dumpRam(filename.toStdString());
+    }
 }

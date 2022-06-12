@@ -24,6 +24,7 @@ src = [
   'src/UI/Settings.cpp',
   'src/UI/Screen.cpp',
   'src/UI/Debug/PatternTableViewer.cpp',
+  'src/UI/Debug/PatternTableImage.cpp',
   'src/Utils/Filesystem.cpp'
 ]
 
@@ -31,7 +32,8 @@ src += qt.compile_moc(
   headers: [
     'src/UI/Settings.h',
     'src/UI/Screen.h',
-    'src/UI/Debug/PatternTableViewer.hpp'])
+    'src/UI/Debug/PatternTableViewer.hpp',
+    'src/UI/Debug/PatternTableImage.hpp'])
 
 executable('NEmuS',
            src,

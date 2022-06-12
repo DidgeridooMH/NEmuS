@@ -7,21 +7,10 @@
 namespace nemus::core
 {
   PPU::PPU()
+      : m_frameBuffers({std::vector<uint32_t>(SCREEN_WIDTH * SCREEN_HEIGHT),
+                        std::vector<uint32_t>(SCREEN_WIDTH * SCREEN_HEIGHT)}),
+        m_activeBuffer(0)
   {
-    m_backBuffer = new unsigned int[SCREEN_WIDTH * SCREEN_HEIGHT];
-
-    for (int i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; i++)
-    {
-      m_backBuffer[i] = 0;
-    }
-
-    m_frontBuffer = new unsigned int[SCREEN_WIDTH * SCREEN_HEIGHT];
-
-    for (int i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; i++)
-    {
-      m_frontBuffer[i] = 0;
-    }
-
     reset();
   }
 
@@ -63,32 +52,7 @@ namespace nemus::core
     m_oamTransfer = 0;
   }
 
-  PPU::~PPU()
-  {
-    delete[] m_backBuffer;
-    delete[] m_frontBuffer;
-  }
-
-  int PPU::getNameTableAddress(unsigned int cycle, unsigned int scanline)
-  {
-    int address = 0x2000;
-
-    int offset = 0x400 * m_ppuCtrl.name_select;
-
-    if (cycle > 0xFF)
-    {
-      offset += 0x400;
-    }
-
-    if (scanline > 240)
-    {
-      offset += 0x800;
-    }
-
-    offset &= 0xFFF;
-
-    return address + offset;
-  }
+  unsigned int *PPU::getPixels() { return m_frameBuffers[m_activeBuffer].data(); }
 
   // void PPU::renderPixel()
   // {
@@ -325,7 +289,7 @@ namespace nemus::core
         }
 
         // TODO: SCREEN_WIDTH should be constexpr
-        m_backBuffer[m_cycle - 1 + m_scanline * SCREEN_WIDTH] = pixel;
+        m_frameBuffers[m_activeBuffer][m_cycle - 1 + m_scanline * SCREEN_WIDTH] = pixel;
       }
     }
 
@@ -366,7 +330,7 @@ namespace nemus::core
         m_scanline = 0;
 
         // Display the current back buffer.
-        std::swap(m_backBuffer, m_frontBuffer);
+        m_activeBuffer = (m_activeBuffer + 1) % m_frameBuffers.size();
       }
     }
   }
@@ -693,12 +657,12 @@ namespace nemus::core
 
   void PPU::dumpRam(std::string filename)
   {
-    std::fstream output;
+    std::ofstream output;
     output.open(filename, std::ios::out | std::ios::binary);
 
     for (int i = 0; i < 0x4000; i++)
     {
-      output << m_memory->readPPUByte(i);
+      output << static_cast<uint8_t>(m_memory->readPPUByte(i));
     }
 
     output.close();

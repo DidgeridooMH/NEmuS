@@ -38,6 +38,7 @@ namespace nemus::ui
         QMenu *m_debugMenu;
         std::unique_ptr<QAction> m_pauseAction;
         std::unique_ptr<QAction> m_patternTableAction;
+        std::unique_ptr<QAction> m_ppuDumpAction;
 
         SettingsState *m_state;
 
@@ -74,6 +75,7 @@ namespace nemus::ui
         void openSettings();
         void SetPauseState();
         void CreatePatternTableViewer();
+        void DumpPPUMemory();
     };
 }
 

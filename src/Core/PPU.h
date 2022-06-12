@@ -2,12 +2,14 @@
 #define NEMUS_PPU_H
 
 #include <vector>
+#include <array>
+
 #include "CPU.h"
 
 #define PATTERN_TABLE_0 0x0000
 #define PATTERN_TABLE_1 0x1000
 
-#define PPU_COLOR_BLACK 0x00000000;
+#define PPU_COLOR_BLACK 0xFF000000;
 #define PPU_COLOR_BLUE 0xFF0000FF;
 #define PPU_COLOR_RED 0xFFFF0000;
 #define PPU_COLOR_WHITE 0xFFFFFFFF;
@@ -32,13 +34,70 @@ namespace nemus::core
 
     class PPU
     {
+    public:
+        static constexpr uint16_t MaxCycles() { return 340U; }
+        static constexpr uint16_t MaxScanlines() { return 261U; }
+
+        PPU();
+
+        void reset();
+
+        void setCPU(CPU *cpu) { m_cpu = cpu; }
+
+        Memory *GetMemory() const { return m_memory; }
+        void setMemory(Memory *memory) { m_memory = memory; }
+
+        void tick();
+
+        void IncrementX();
+
+        void IncrementY();
+
+        uint32_t FetchBackgroundPixel();
+
+        unsigned int *getPixels();
+
+        void writePPU(unsigned int data, unsigned int address);
+
+        unsigned int readPPU(unsigned int address);
+
+        void writePPUCtrl(unsigned int data);
+
+        void writePPUMask(unsigned int data);
+
+        unsigned int readPPUMask();
+
+        unsigned int readPPUStatus();
+
+        void writeOAMAddr(unsigned int data) { m_oamAddr = data; }
+
+        unsigned int readOAMAddr() { return m_oamAddr; }
+
+        void writeOAMData(unsigned int data);
+
+        unsigned int readOAMData();
+
+        void writePPUScroll(uint8_t data);
+
+        void writePPUAddr(uint8_t data);
+
+        void writePPUData(unsigned int data);
+
+        uint8_t ReadPPUData();
+
+        void writeOAMDMA(unsigned int data);
+
+        void writeVRAM(unsigned char data, int address);
+
+        void dumpRam(std::string filename);
+
     private:
         CPU *m_cpu = nullptr;
 
         Memory *m_memory = nullptr;
 
-        unsigned int *m_frontBuffer = nullptr;
-        unsigned int *m_backBuffer = nullptr;
+        std::array<std::vector<uint32_t>, 2> m_frameBuffers;
+        size_t m_activeBuffer;
 
         unsigned char m_oam[0x100];
 
@@ -107,67 +166,6 @@ namespace nemus::core
         void renderPixel();
 
         void evaluateSprites();
-
-        int getNameTableAddress(unsigned cycle, unsigned scanline);
-
-    public:
-        static constexpr uint16_t MaxCycles() { return 340U; }
-        static constexpr uint16_t MaxScanlines() { return 261U; }
-
-        PPU();
-
-        ~PPU();
-
-        void reset();
-
-        void setCPU(CPU *cpu) { m_cpu = cpu; }
-
-        Memory *GetMemory() const { return m_memory; }
-        void setMemory(Memory *memory) { m_memory = memory; }
-
-        void tick();
-
-        void IncrementX();
-
-        void IncrementY();
-
-        uint32_t FetchBackgroundPixel();
-
-        unsigned int *getPixels() { return m_frontBuffer; };
-
-        void writePPU(unsigned int data, unsigned int address);
-
-        unsigned int readPPU(unsigned int address);
-
-        void writePPUCtrl(unsigned int data);
-
-        void writePPUMask(unsigned int data);
-
-        unsigned int readPPUMask();
-
-        unsigned int readPPUStatus();
-
-        void writeOAMAddr(unsigned int data) { m_oamAddr = data; }
-
-        unsigned int readOAMAddr() { return m_oamAddr; }
-
-        void writeOAMData(unsigned int data);
-
-        unsigned int readOAMData();
-
-        void writePPUScroll(uint8_t data);
-
-        void writePPUAddr(uint8_t data);
-
-        void writePPUData(unsigned int data);
-
-        uint8_t ReadPPUData();
-
-        void writeOAMDMA(unsigned int data);
-
-        void writeVRAM(unsigned char data, int address);
-
-        void dumpRam(std::string filename);
     };
 }
 

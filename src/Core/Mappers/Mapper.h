@@ -28,7 +28,6 @@ namespace nemus::core
 
         virtual MirrorMode getMirroring() = 0;
 
-        // virtual std::vector<uint8_t> DumpPPU() const = 0;
     protected:
         static constexpr size_t INESRomHeaderSize = 0x10;
     };

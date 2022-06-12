@@ -1,98 +1,72 @@
 #include <cstring>
 #include "NROM.h"
 
-nemus::core::NROM::NROM(const std::vector<char> &romStart)
+namespace nemus::core
 {
-    // TODO: Check size of rom file.
-    // TODO: Replace with vectors
-    m_fixedCPUMemory = new unsigned char[0xA000];
-
-    m_fixedPPUMemory = new unsigned char[0x8000];
-
-    // TODO: Replace with memory copies
-    for (unsigned int i = 0; i < 0x8000; i++)
+    NROM::NROM(const std::vector<char> &romStart)
+        : m_fixedCPUMemory(0xA000),
+          m_fixedPPUMemory(0x8000),
+          m_nameTables({std::vector<uint8_t>(0x400),
+                        std::vector<uint8_t>(0x400)})
     {
-        m_fixedCPUMemory[0x2000 + i] = romStart[i + 0x10];
+        // TODO: Check size of rom file.
+        memcpy(&m_fixedCPUMemory[0x2000], &romStart[INESRomHeaderSize], 0x8000);
+        memcpy(m_fixedPPUMemory.data(), &romStart[0x8000 + INESRomHeaderSize], 0x2000);
+
+        m_mirroring = static_cast<MirrorMode>(romStart[6] & 1);
     }
 
-    for (unsigned int i = 0; i < 0x2000; i++)
+    NameTableId NROM::getMirroringTable(unsigned int address)
     {
-        m_fixedPPUMemory[i] = romStart[0x8000 + i + 0x10];
+        switch (m_mirroring)
+        {
+        case MirrorMode::Horizontal:
+            return (address >= 0x2000 && address < 0x2800) ? NameTableId::A : NameTableId::B;
+        case MirrorMode::Vertical:
+            return ((address >= 0x2000 && address < 0x2400) || (address >= 0x2800 && address < 0x2C00)) ? NameTableId::A : NameTableId::B;
+        default:
+            break;
+        }
+
+        return NameTableId::A;
     }
 
-    m_tableA = new unsigned char[0x400];
-    m_tableB = new unsigned char[0x400];
-    m_tableC = new unsigned char[0x400];
-    m_tableD = new unsigned char[0x400];
-
-    m_mirroring = static_cast<MirrorMode>(romStart[6] & 1);
-}
-
-nemus::core::NROM::~NROM()
-{
-    delete[] m_fixedCPUMemory;
-    delete[] m_fixedPPUMemory;
-
-    delete[] m_tableA;
-    delete[] m_tableB;
-    delete[] m_tableC;
-    delete[] m_tableD;
-}
-
-unsigned char *nemus::core::NROM::getMirroringTable(unsigned int address)
-{
-    unsigned char *nametablePtr = nullptr;
-
-    switch (m_mirroring)
+    unsigned char NROM::readByte(unsigned int address)
     {
-    case MirrorMode::Horizontal:
-        return (address >= 0x2000 && address < 0x2800) ? m_tableA : m_tableB;
-    case MirrorMode::Vertical:
-        return ((address >= 0x2000 && address < 0x2400) || (address >= 0x2800 && address < 0x2C00)) ? m_tableA : m_tableB;
-    default:
-        // This will cause visual glitches but won't crash the program.
-        nametablePtr = m_tableA;
-        break;
+        return m_fixedCPUMemory[address - 0x6000];
     }
 
-    return nametablePtr;
-}
-
-unsigned char nemus::core::NROM::readByte(unsigned int address)
-{
-    return m_fixedCPUMemory[address - 0x6000];
-}
-
-unsigned char nemus::core::NROM::readBytePPU(unsigned address)
-{
-    if (address >= 0x2000 && address < 0x3000)
+    unsigned char NROM::readBytePPU(unsigned address)
     {
-        unsigned char *nametable = getMirroringTable(address);
-        address %= 0x400;
-        return nametable[address];
+        if (address >= 0x2000 && address < 0x3000)
+        {
+            auto nametable = getMirroringTable(address);
+            address %= 0x400;
+            return m_nameTables[static_cast<int>(nametable)][address];
+        }
+
+        return m_fixedPPUMemory[address];
     }
 
-    return m_fixedPPUMemory[address];
-}
-
-void nemus::core::NROM::writeByte(unsigned char data, unsigned address)
-{
-    if (address < 0x8000)
+    void NROM::writeByte(unsigned char data, unsigned address)
     {
-        m_fixedCPUMemory[address - 0x6000] = data;
+        if (address < 0x8000)
+        {
+            m_fixedCPUMemory[address - 0x6000] = data;
+        }
     }
-}
 
-void nemus::core::NROM::writeBytePPU(unsigned char data, unsigned address)
-{
-    if (address >= 0x2000 && address < 0x3000)
+    void NROM::writeBytePPU(unsigned char data, unsigned address)
     {
-        unsigned char *nametable = getMirroringTable(address);
-        address %= 0x400;
-        nametable[address] = data;
-    }
-    else
-    {
-        m_fixedPPUMemory[address] = data;
+        if (address >= 0x2000 && address < 0x3000)
+        {
+            auto nametable = getMirroringTable(address);
+            address %= 0x400;
+            m_nameTables[static_cast<int>(nametable)][address] = data;
+        }
+        else
+        {
+            m_fixedPPUMemory[address] = data;
+        }
     }
 }
