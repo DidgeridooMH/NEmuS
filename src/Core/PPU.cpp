@@ -50,147 +50,12 @@ namespace nemus::core
 
     m_oamDMA = 2;
     m_oamTransfer = 0;
+
+    m_tileData = 0;
   }
 
   unsigned int *PPU::getPixels() { return m_frameBuffers[m_activeBuffer].data(); }
 
-  // void PPU::renderPixel()
-  // {
-  //   unsigned int scanline = m_scanline + m_ppuScrollY;
-
-  //   unsigned int cycle = m_cycle + m_ppuScrollX;
-
-  //   int x = (cycle % 256) / 8;
-  //   int y = (scanline % 240) / 8;
-  //   int sliver = scanline % 8;
-  //   int pixel = cycle % 8;
-  //   int tileNum = x + (y * 32);
-
-  //   int nameTableAddress = getNameTableAddress(cycle, scanline);
-
-  //   int tileID = m_memory->readPPUByte(nameTableAddress + tileNum);
-
-  //   int plane0 = 0, plane1 = 0;
-
-  //   if (m_ppuMask.bg_enable)
-  //   {
-  //     if (m_ppuCtrl.bg_tile_select)
-  //     {
-  //       plane0 = m_memory->readPPUByte(PATTERN_TABLE_1 + (tileID * 0x10) + sliver);
-  //       plane1 = m_memory->readPPUByte(PATTERN_TABLE_1 + (tileID * 0x10) + sliver + 0x08);
-  //     }
-  //     else
-  //     {
-  //       plane0 = m_memory->readPPUByte(PATTERN_TABLE_0 + (tileID * 0x10) + sliver);
-  //       plane1 = m_memory->readPPUByte(PATTERN_TABLE_0 + (tileID * 0x10) + sliver + 0x08);
-  //     }
-
-  //     int color = 0;
-
-  //     if (m_ppuMask.bg_enable)
-  //     {
-  //       color = (plane0 >> (7 - pixel)) & 0x1;
-
-  //       if (pixel < 7)
-  //       {
-  //         color |= (plane1 >> (6 - pixel)) & 0x2;
-  //       }
-  //       else
-  //       {
-  //         color |= (plane1 << 1) & 0x2;
-  //       }
-  //     }
-
-  //     if (m_ppuMask.sprite_enable)
-  //     {
-  //       if (m_spriteScanline[m_cycle] > 0)
-  //       {
-  //         for (unsigned int sprite0Pixel : m_sprite0Pixels)
-  //         {
-  //           if (m_cycle == sprite0Pixel)
-  //           {
-  //             m_hitNextLine = true;
-  //           }
-  //         }
-
-  //         color = m_spriteScanline[m_cycle];
-  //       }
-  //     }
-
-  //     unsigned int videoAddress = m_cycle + (m_scanline * SCREEN_WIDTH);
-  //     videoAddress %= SCREEN_WIDTH * SCREEN_HEIGHT;
-
-  //     switch (color)
-  //     {
-  //     case 0:
-  //       m_backBuffer[videoAddress] = PPU_COLOR_BLACK;
-  //       break;
-  //     case 1:
-  //       m_backBuffer[videoAddress] = PPU_COLOR_RED;
-  //       break;
-  //     case 2:
-  //       m_backBuffer[videoAddress] = PPU_COLOR_BLUE;
-  //       break;
-  //     case 3:
-  //       m_backBuffer[videoAddress] = PPU_COLOR_WHITE;
-  //       break;
-  //     }
-  //   }
-  // }
-
-  // void PPU::tick()
-  // {
-  //     if (m_scanline < 240)
-  //     {
-  //         renderPixel();
-  //     }
-  //     else if (m_scanline < 261)
-  //     {
-  //         if (m_cycle == 1)
-  //         {
-  //             if (m_ppuCtrl.nmi)
-  //             {
-  //                 m_cpu->setInterrupt(comp::INT_NMI);
-  //             }
-
-  //             m_ppuStatus.vblank = true;
-  //         }
-  //     }
-  //     else
-  //     {
-  //         m_scanline = 0;
-  //         m_cycle = 0;
-  //         m_ppuStatus.s0_hit = false;
-  //         m_ppuStatus.vblank = false;
-
-  //         m_sprite0Pixels.clear();
-
-  //         unsigned int *tmp = m_backBuffer;
-  //         m_backBuffer = m_frontBuffer;
-  //         m_frontBuffer = tmp;
-
-  //         return;
-  //     }
-
-  //     if (++m_cycle > 256)
-  //     {
-  //         if (m_hitNextLine)
-  //         {
-  //             m_ppuStatus.s0_hit = true;
-  //             m_hitNextLine = false;
-  //         }
-
-  //         m_scanline++;
-  //         m_cycle = 0;
-  //         m_sprite0Pixels.clear();
-  //         if (m_scanline < 240)
-  //         {
-  //             evaluateSprites();
-  //         }
-  //     }
-  // }
-
-  // TODO: memory operations might use a buffer.
   // TODO: Skipped cycle on (0, 0) with background rendering on on odd frame.
   void PPU::tick()
   {
@@ -203,29 +68,31 @@ namespace nemus::core
         {
           if (m_scanline < 240)
           {
-            uint32_t pixel = 0U;
+            uint32_t colorIndex = 0U;
             if (m_ppuMask.bg_enable)
             {
-              pixel = FetchBackgroundPixel();
+              colorIndex = FetchBackgroundPixel();
             }
 
-            // TODO: SCREEN_WIDTH should be constexpr
-            m_frameBuffers[m_activeBuffer][m_cycle - 1 + m_scanline * SCREEN_WIDTH] = pixel;
+            auto color = Palette[m_memory->readPPUByte(0x3F00 | colorIndex)];
+
+            m_frameBuffers[m_activeBuffer][m_cycle - 1 + m_scanline * SCREEN_WIDTH] = color;
           }
 
           if (m_cycle < 337)
           {
-            m_tileData <<= 2;
+            m_tileData <<= 4;
           }
 
           switch (m_cycle % 8)
           {
           case 0:
           {
-            // TODO: Maybe need X scrolling?
             uint32_t tile = 0;
             for (auto i = 0; i < 8; i++)
             {
+              tile <<= 2;
+              tile |= m_attributeBuffer & 3;
               tile <<= 1;
               tile |= (m_patternHighBuffer >> (7 - i)) & 1;
               tile <<= 1;
@@ -253,7 +120,8 @@ namespace nemus::core
               uint16_t x = m_v.r.coarseXScroll >> 2;
               uint16_t y = m_v.r.coarseYScroll >> 2;
               uint16_t attributeAddress = 0x23C0 | m_v.r.nameTableSelect << 10 | (y << 3) | x;
-              m_attributeBuffer = m_memory->readPPUByte(attributeAddress);
+              auto shift = (m_v.r.coarseXScroll & 0x2) | ((m_v.r.coarseYScroll & 0x2) << 1);
+              m_attributeBuffer = (m_memory->readPPUByte(attributeAddress) >> shift) & 3;
             }
             break;
           case 5:
@@ -361,17 +229,7 @@ namespace nemus::core
 
   uint32_t PPU::FetchBackgroundPixel()
   {
-    switch ((m_tileData >> (30 - (m_fineXScroll * 2))) & 3)
-    {
-    case 0:
-      return PPU_COLOR_BLACK;
-    case 1:
-      return PPU_COLOR_RED;
-    case 2:
-      return PPU_COLOR_BLUE;
-    default:
-      return PPU_COLOR_WHITE;
-    }
+    return (m_tileData >> (60 - (m_fineXScroll * 4))) & 0xF;
   }
 
   void PPU::evaluateSprites()
@@ -587,7 +445,7 @@ namespace nemus::core
   {
     if (!m_writeLatch)
     {
-      m_t.addr = (m_t.addr & 0x80FF) | ((data & 0x3F) << 8);
+      m_t.addr = (m_t.addr & 0xC0FF) | ((data & 0x3F) << 8);
       m_writeLatch = true;
     }
     else
@@ -692,6 +550,11 @@ namespace nemus::core
 
   unsigned int PPU::readOAMData()
   {
-    return m_oam[m_oamAddr];
+    auto data = m_oam[m_oamAddr];
+    if ((m_oamAddr & 0x03) == 0x2)
+    {
+      data &= 0xE3;
+    }
+    return data;
   }
 } // namespace nemus::core

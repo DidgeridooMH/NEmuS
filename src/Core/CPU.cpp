@@ -32,6 +32,11 @@ nemus::core::CPU::CPU(Memory *memory, debug::Logger *logger)
 
 int nemus::core::CPU::tick()
 {
+    if (m_reg.pc == 0xA080)
+    {
+        m_logger->write("hit");
+    }
+
     // NMI
     if (m_interrupt != comp::INT_NONE)
     {
@@ -782,6 +787,43 @@ int nemus::core::CPU::tick()
     case 0x3F:
         m_logger->write("RLA Instruction");
         rotateLeft(comp::ADDR_MODE_ABSOLUTE_X);
+        bitAnd(comp::ADDR_MODE_ABSOLUTE_X);
+        break;
+
+    // RRA
+    case 0x63:
+        m_logger->write("RRA Instruction");
+        rotateRight(comp::ADDR_MODE_INDIRECT_X);
+        bitAnd(comp::ADDR_MODE_INDIRECT_X);
+        break;
+    case 0x67:
+        m_logger->write("RRA Instruction");
+        rotateRight(comp::ADDR_MODE_ZERO_PAGE);
+        bitAnd(comp::ADDR_MODE_ZERO_PAGE);
+        break;
+    case 0x6F:
+        m_logger->write("RRA Instruction");
+        rotateRight(comp::ADDR_MODE_ABSOLUTE);
+        bitAnd(comp::ADDR_MODE_ABSOLUTE);
+        break;
+    case 0x73:
+        m_logger->write("RRA Instruction");
+        rotateRight(comp::ADDR_MODE_INDIRECT_Y);
+        bitAnd(comp::ADDR_MODE_INDIRECT_Y);
+        break;
+    case 0x77:
+        m_logger->write("RRA Instruction");
+        rotateRight(comp::ADDR_MODE_ZERO_PAGE_X);
+        bitAnd(comp::ADDR_MODE_ZERO_PAGE_X);
+        break;
+    case 0x7B:
+        m_logger->write("RRA Instruction");
+        rotateRight(comp::ADDR_MODE_ABSOLUTE_Y);
+        bitAnd(comp::ADDR_MODE_ABSOLUTE_Y);
+        break;
+    case 0x7F:
+        m_logger->write("RRA Instruction");
+        rotateRight(comp::ADDR_MODE_ABSOLUTE_X);
         bitAnd(comp::ADDR_MODE_ABSOLUTE_X);
         break;
 

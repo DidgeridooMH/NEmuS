@@ -7,10 +7,10 @@ namespace nemus::core
 {
     enum class MirrorMode
     {
-        Horizontal,
-        Vertical,
         OsLower,
-        OsUpper
+        OsUpper,
+        Vertical,
+        Horizontal
     };
 
     class Mapper

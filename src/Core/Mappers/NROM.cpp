@@ -58,15 +58,18 @@ namespace nemus::core
 
     void NROM::writeBytePPU(unsigned char data, unsigned address)
     {
-        if (address >= 0x2000 && address < 0x3000)
-        {
-            auto nametable = getMirroringTable(address);
-            address %= 0x400;
-            m_nameTables[static_cast<int>(nametable)][address] = data;
-        }
-        else
+        if (address < 0x2000)
         {
             m_fixedPPUMemory[address] = data;
+        }
+        else if (address < 0x3F00)
+        {
+            m_nameTables[static_cast<int>(getMirroringTable(address))][address % 0x400] = data;
+        }
+        else if (address < 0x4000)
+        {
+            address -= 0x3F00;
+            m_fixedPPUMemory[0x3F00 + (address % 32)] = data;
         }
     }
 }

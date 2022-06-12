@@ -105,6 +105,9 @@ unsigned int nemus::core::Memory::readByte(unsigned int address)
     {
         return m_input->read();
     }
+    else if (address == 0x4017)
+    {
+    }
     else if (address >= 0x6000)
     {
         return m_mapper->readByte(address);
@@ -112,8 +115,9 @@ unsigned int nemus::core::Memory::readByte(unsigned int address)
     else
     {
         m_logger->write("Illegal Out of Bounds Read at " + std::to_string(address));
-        return 0;
+        throw std::runtime_error("Illegal out of bounds read!!!");
     }
+    return 0;
 }
 
 unsigned int nemus::core::Memory::readByte(comp::Registers registers, comp::AddressMode addr)
@@ -208,6 +212,7 @@ bool nemus::core::Memory::writeByte(unsigned char data, unsigned int address)
     else
     {
         m_logger->write("Illegal Out of Bounds Write!!!");
+        throw std::runtime_error("Illegal out of bounds write!!!");
         return true;
     }
 
