@@ -20,7 +20,7 @@ namespace nemus::core
         unsigned char *m_tableC;
         unsigned char *m_tableD;
 
-        int m_mirroring;
+        MirrorMode m_mirroring;
 
         unsigned char *getMirroringTable(unsigned address);
 
@@ -36,7 +36,7 @@ namespace nemus::core
 
         void writeBytePPU(unsigned char data, unsigned int address) override;
 
-        int getMirroring() override { return m_mirroring; }
+        MirrorMode getMirroring() override { return m_mirroring; }
     };
 
 }

@@ -120,9 +120,10 @@ namespace nemus::core
 
         void reset();
 
-        void setCPU(nemus::core::CPU *cpu) { m_cpu = cpu; }
+        void setCPU(CPU *cpu) { m_cpu = cpu; }
 
-        void setMemory(nemus::core::Memory *memory) { m_memory = memory; }
+        Memory *GetMemory() const { return m_memory; }
+        void setMemory(Memory *memory) { m_memory = memory; }
 
         void tick();
 

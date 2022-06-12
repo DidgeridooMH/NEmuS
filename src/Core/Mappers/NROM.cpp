@@ -25,7 +25,7 @@ nemus::core::NROM::NROM(const std::vector<char> &romStart)
     m_tableC = new unsigned char[0x400];
     m_tableD = new unsigned char[0x400];
 
-    m_mirroring = romStart[6] & 1;
+    m_mirroring = static_cast<MirrorMode>(romStart[6] & 1);
 }
 
 nemus::core::NROM::~NROM()
@@ -45,26 +45,10 @@ unsigned char *nemus::core::NROM::getMirroringTable(unsigned int address)
 
     switch (m_mirroring)
     {
-    case MIRROR_HORIZONTAL:
-        if (address >= 0x2000 && address < 0x2800)
-        {
-            nametablePtr = m_tableA;
-        }
-        else
-        {
-            nametablePtr = m_tableB;
-        }
-        break;
-    case MIRROR_VERTICAL:
-        if ((address >= 0x2000 && address < 0x2400) || (address >= 0x2800 && address < 0x2C00))
-        {
-            nametablePtr = m_tableA;
-        }
-        else
-        {
-            nametablePtr = m_tableB;
-        }
-        break;
+    case MirrorMode::Horizontal:
+        return (address >= 0x2000 && address < 0x2800) ? m_tableA : m_tableB;
+    case MirrorMode::Vertical:
+        return ((address >= 0x2000 && address < 0x2400) || (address >= 0x2800 && address < 0x2C00)) ? m_tableA : m_tableB;
     default:
         // This will cause visual glitches but won't crash the program.
         nametablePtr = m_tableA;

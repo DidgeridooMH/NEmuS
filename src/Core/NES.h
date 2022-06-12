@@ -24,6 +24,8 @@ namespace nemus
 
         bool m_gameLoaded = false;
 
+        bool m_paused = false;
+
     public:
         NES();
 
@@ -34,6 +36,9 @@ namespace nemus
         void loadGame(const std::vector<char> &gameData);
 
         void reset();
+
+        bool IsPaused() const { return m_paused; }
+        void SetPause(bool shouldPause) { m_paused = shouldPause; }
     };
 }
 

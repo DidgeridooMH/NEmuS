@@ -157,6 +157,16 @@ void nemus::ui::Screen::create_menu()
     m_fileMenu->addAction(m_loadRomAction);
     m_fileMenu->addAction(m_settingsAction);
     m_fileMenu->addAction(m_exitAction);
+
+    m_pauseAction = std::make_unique<QAction>(tr("Pause"), this);
+    connect(m_pauseAction.get(), &QAction::triggered, this, &Screen::SetPauseState);
+
+    m_patternTableAction = std::make_unique<QAction>(tr("Show Pattern Tables"), this);
+    connect(m_patternTableAction.get(), &QAction::triggered, this, &Screen::CreatePatternTableViewer);
+
+    m_debugMenu = menuBar()->addMenu(tr("Debug"));
+    m_debugMenu->addAction(m_pauseAction.get());
+    m_debugMenu->addAction(m_patternTableAction.get());
 }
 
 void nemus::ui::Screen::closeEvent(QCloseEvent *event)
@@ -164,17 +174,6 @@ void nemus::ui::Screen::closeEvent(QCloseEvent *event)
     event->accept();
     m_quit = true;
 }
-
-#ifndef QT_NO_CONTEXTMENU
-void nemus::ui::Screen::contextMenuEvent(QContextMenuEvent *event)
-{
-    QMenu menu(this);
-    menu.addAction(m_loadRomAction);
-    menu.addAction(m_settingsAction);
-    menu.addAction(m_exitAction);
-    menu.exec(event->globalPos());
-}
-#endif // QT_NO_CONTEXTMENU
 
 void nemus::ui::Screen::paintEvent(QPaintEvent *)
 {
@@ -248,4 +247,24 @@ void nemus::ui::Screen::applySettings()
     }
 
     this->update();
+}
+
+void nemus::ui::Screen::SetPauseState()
+{
+    auto paused = m_nes->IsPaused();
+    // If we're paused we're going to continue after this function and vice versa.
+    if (paused)
+    {
+        m_pauseAction->setText("Pause");
+    }
+    else
+    {
+        m_pauseAction->setText("Continue");
+    }
+    m_nes->SetPause(!paused);
+}
+
+void nemus::ui::Screen::CreatePatternTableViewer()
+{
+    m_patternTableViewer = std::make_unique<PatternTableViewer>(m_ppu->GetMemory(), nullptr);
 }

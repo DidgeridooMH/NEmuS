@@ -47,8 +47,6 @@ namespace nemus::core
 
         inline char readRom(int address) { return m_rom->at(address); }
 
-        int getMirroring() { return m_mapper->getMirroring(); }
-
         unsigned int readByte(unsigned int address);
 
         unsigned int readByte(comp::Registers registers, comp::AddressMode addr);

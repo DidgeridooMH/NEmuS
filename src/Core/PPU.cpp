@@ -623,7 +623,8 @@ namespace nemus::core
     }
     else
     {
-      m_v.addr = (m_t.addr & 0xFF00) | data;
+      m_t.addr = (m_t.addr & 0xFF00) | data;
+      m_v.addr = m_t.addr;
       m_writeLatch = false;
     }
   }
@@ -640,7 +641,6 @@ namespace nemus::core
     {
       m_v.addr += 32;
     }
-    m_v.addr &= 0x3FFF;
   }
 
   uint8_t PPU::ReadPPUData()

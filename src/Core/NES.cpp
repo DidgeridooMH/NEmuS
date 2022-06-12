@@ -29,7 +29,7 @@ void nemus::NES::run()
 
     while (!m_screen->getQuit())
     {
-        if (m_gameLoaded && m_cpu->isRunning())
+        if (m_gameLoaded && m_cpu->isRunning() && !m_paused)
         {
             int cycles = m_cpu->tick();
 
