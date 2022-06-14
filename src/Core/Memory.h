@@ -59,7 +59,7 @@ namespace nemus::core
 
         void writeByte(comp::Registers registers, unsigned int src, comp::AddressMode addr);
 
-        unsigned int readPPUByte(unsigned int address);
+        uint8_t readPPUByte(unsigned int address);
 
         void writePPUByte(unsigned char data, unsigned int address);
 

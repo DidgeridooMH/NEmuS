@@ -9,9 +9,9 @@ namespace nemus::core
 {
     struct MMC1Control
     {
-        int chr_mode;
-        int prg_mode;
-        MirrorMode mirroring;
+        uint8_t mirroring : 2;
+        uint8_t prg_mode : 2;
+        uint8_t chr_mode : 1;
     };
 
     class MMC1 : public Mapper
@@ -26,7 +26,7 @@ namespace nemus::core
         uint8_t readBytePPU(uint32_t address) override;
         void writeBytePPU(uint8_t data, uint32_t address) override;
 
-        MirrorMode getMirroring() override { return m_control.mirroring; };
+        MirrorMode getMirroring() override { return static_cast<MirrorMode>(m_control.mirroring); }
 
     private:
         static constexpr size_t NameTableSize = 0x400;

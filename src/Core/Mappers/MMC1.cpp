@@ -21,9 +21,9 @@ nemus::core::MMC1::MMC1(const std::vector<char> &gameData)
       m_maxPrgBanks(gameData[4]),
       m_shiftRegister(InitialShiftRegister),
       m_control(MMC1Control{
-          .chr_mode = 0,
+          .mirroring = static_cast<uint8_t>(MirrorMode::Horizontal),
           .prg_mode = 0,
-          .mirroring = MirrorMode::Horizontal}),
+          .chr_mode = 0}),
       m_prgBank(0),
       m_chrBank(0)
 {
@@ -39,9 +39,10 @@ nemus::core::MMC1::MMC1(const std::vector<char> &gameData)
   m_maxPrgBanks = gameData[4];
 }
 
+// TODO: Maybe need OS frames?
 uint32_t nemus::core::MMC1::getMirroringTable(uint32_t address)
 {
-  switch (m_control.mirroring)
+  switch (static_cast<MirrorMode>(m_control.mirroring))
   {
   case MirrorMode::Horizontal:
     return (address >= 0x2000 && address < 0x2800) ? 0 : 1;
@@ -132,15 +133,13 @@ void nemus::core::MMC1::adjustShiftRegister(uint8_t data, uint32_t address)
 {
   if (data & 0x80)
   {
-    uint8_t control = 0;
-    control |= (m_control.prg_mode & 3) << 2;
-    control |= (m_control.chr_mode & 1) << 4;
-    control |= static_cast<uint8_t>(m_control.mirroring) & 3;
-    control |= 0xC;
+    m_control = {.mirroring = m_control.mirroring,
+                 .prg_mode = 3,
+                 .chr_mode = m_control.chr_mode};
 
-    m_shiftRegister = control;
+    m_shiftRegister = InitialShiftRegister;
 
-    writeControl();
+    updateBanks();
   }
   else
   {
@@ -176,16 +175,16 @@ void nemus::core::MMC1::writeControl()
   switch (m_shiftRegister & 3)
   {
   case 0:
-    m_control.mirroring = MirrorMode::OsLower;
+    m_control.mirroring = (uint8_t)MirrorMode::OsLower;
     break;
   case 1:
-    m_control.mirroring = MirrorMode::OsUpper;
+    m_control.mirroring = (uint8_t)MirrorMode::OsUpper;
     break;
   case 2:
-    m_control.mirroring = MirrorMode::Vertical;
+    m_control.mirroring = (uint8_t)MirrorMode::Vertical;
     break;
   case 3:
-    m_control.mirroring = MirrorMode::Horizontal;
+    m_control.mirroring = (uint8_t)MirrorMode::Horizontal;
     break;
   }
 

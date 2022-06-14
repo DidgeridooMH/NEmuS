@@ -445,7 +445,7 @@ namespace nemus::core
   {
     if (!m_writeLatch)
     {
-      m_t.addr = (m_t.addr & 0xC0FF) | ((data & 0x3F) << 8);
+      m_t.addr = (m_t.addr & 0x00FF) | ((data & 0x3F) << 8);
       m_writeLatch = true;
     }
     else
@@ -472,27 +472,40 @@ namespace nemus::core
 
   uint8_t PPU::ReadPPUData()
   {
-    uint8_t value = m_memory->readPPUByte(m_v.addr);
+    auto value = m_dataBuffer;
 
-    if (m_v.addr % 0x4000 < 0x3F00)
+    m_dataBuffer = m_memory->readPPUByte(m_v.addr);
+
+    if (m_v.addr >= 0x3F00)
     {
-      std::swap(m_dataBuffer, value);
-    }
-    else
-    {
-      m_dataBuffer = m_memory->readPPUByte(m_v.addr - 0x1000);
+      value = m_dataBuffer;
     }
 
-    if (!m_ppuCtrl.inc_mode)
-    {
-      m_v.addr += 1;
-    }
-    else
-    {
-      m_v.addr += 32;
-    }
+    m_v.addr += m_ppuCtrl.inc_mode ? 32 : 1;
 
     return value;
+
+    // uint8_t value = m_memory->readPPUByte(m_v.addr);
+
+    // if (m_v.addr % 0x4000 < 0x3F00)
+    // {
+    //   std::swap(m_dataBuffer, value);
+    // }
+    // else
+    // {
+    //   m_dataBuffer = m_memory->readPPUByte(m_v.addr - 0x1000);
+    // }
+
+    // if (!m_ppuCtrl.inc_mode)
+    // {
+    //   m_v.addr += 1;
+    // }
+    // else
+    // {
+    //   m_v.addr += 32;
+    // }
+
+    // return value;
   }
 
   void PPU::writePPUScroll(uint8_t data)

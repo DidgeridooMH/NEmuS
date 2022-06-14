@@ -268,7 +268,7 @@ void nemus::core::Memory::writeByte(comp::Registers registers, unsigned int src,
     }
 }
 
-unsigned int nemus::core::Memory::readPPUByte(unsigned int address)
+uint8_t nemus::core::Memory::readPPUByte(unsigned int address)
 {
     return m_mapper->readBytePPU(address);
 }
