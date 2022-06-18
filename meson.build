@@ -51,13 +51,26 @@ gtest_dep = gtest.get_variable('gtest_main_dep')
 mapper_test_src = [
   'test/mappers/nrom_test.cpp'
 ]
-
 mapper_test = executable(
   'mapper_test',
   [mapper_test_src, src],
   include_directories : incdir,
   dependencies : [gtest_dep, deps]
 )
+test('Mapper Tests', mapper_test)
 
-test('mapper_test', mapper_test)
+memory_test = executable(
+  'memory_test',
+  ['test/memory_test.cpp', src],
+  include_directories : incdir,
+  dependencies : [gtest_dep, deps]
+)
+test('Memory Tests', memory_test)
 
+cpu_test = executable(
+  'cpu_test',
+  ['test/cpu_test.cpp', src],
+  include_directories : incdir,
+  dependencies : [gtest_dep, deps]
+)
+test('CPU Tests', cpu_test)

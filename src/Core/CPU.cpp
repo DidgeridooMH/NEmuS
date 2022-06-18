@@ -881,13 +881,12 @@ void nemus::core::CPU::resetRegisters()
 
 void nemus::core::CPU::adc(comp::AddressMode addr)
 {
-    uint16_t operand = m_memory->ReadByte(m_reg, addr);
-    uint16_t result = m_reg.a + operand + m_reg.p.carry;
-
-    m_reg.p.overflow = ~(m_reg.a ^ operand) & (m_reg.a ^ result) & 0x80;
-    m_reg.p.carry = result > 0xFF;
+    uint8_t operand = m_memory->ReadByte(m_reg, addr);
+    uint8_t result = m_reg.a + operand + m_reg.p.carry;
 
     m_reg.a = result;
+    m_reg.p.overflow = (~(m_reg.a ^ operand) & (m_reg.a ^ result)) >> 7;
+    m_reg.p.carry = m_reg.p.overflow;
     m_reg.p.zero = m_reg.a == 0;
     m_reg.p.negative = m_reg.a >> 7;
 
@@ -896,9 +895,9 @@ void nemus::core::CPU::adc(comp::AddressMode addr)
 
 void nemus::core::CPU::bitAnd(comp::AddressMode addr)
 {
-    auto operand = m_memory->ReadByte(m_reg, addr);
+    uint8_t operand = m_memory->ReadByte(m_reg, addr);
 
-    m_reg.a = operand & m_reg.a;
+    m_reg.a &= operand;
     m_reg.p.zero = m_reg.a == 0;
     m_reg.p.negative = m_reg.a >> 7;
 
@@ -938,14 +937,11 @@ void nemus::core::CPU::branch(bool doJump)
 
 void nemus::core::CPU::bit(comp::AddressMode addr)
 {
-    auto operand = m_memory->ReadByte(m_reg, addr);
-    auto result = m_reg.a & operand;
-    // TODO: Should this be the operand?
+    auto operand = m_memory->ReadByte(m_reg, addr) & m_reg.a;
 
     m_reg.p.negative = operand >> 7;
-    // Check for half carry flag.
-    m_reg.p.overflow = operand >> 4;
-    m_reg.p.zero = result == 0;
+    m_reg.p.overflow = operand >> 6;
+    m_reg.p.zero = operand == 0;
 
     m_logger->writeInstruction(m_reg, "bit_test", operand, addr);
 }
@@ -984,7 +980,7 @@ void nemus::core::CPU::decrement(uint8_t &src)
 void nemus::core::CPU::xora(comp::AddressMode addr)
 {
     auto operand = m_memory->ReadByte(m_reg, addr);
-    m_reg.a = operand ^ m_reg.a;
+    m_reg.a ^= operand;
     m_reg.p.zero = m_reg.a == 0;
     m_reg.p.negative = m_reg.a >> 7;
     m_logger->writeInstruction(m_reg, "xor", operand, addr);
@@ -1124,8 +1120,8 @@ void nemus::core::CPU::rotateLeft(comp::AddressMode addr)
 
 void nemus::core::CPU::subtract(comp::AddressMode addr)
 {
-    uint16_t operand = m_memory->ReadByte(m_reg, addr) ^ 0xFF;
-    uint16_t result = m_reg.a + operand + m_reg.p.carry;
+    uint16_t operand = m_memory->ReadByte(m_reg, addr);
+    uint16_t result = m_reg.a - operand - (1 - m_reg.p.carry);
 
     m_reg.p.overflow = (~(m_reg.a ^ operand) & (m_reg.a ^ (result & 0xFF))) >> 7;
     m_reg.p.carry = (result & 0xFF00) > 0 ? 1 : 0;

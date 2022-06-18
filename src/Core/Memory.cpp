@@ -18,10 +18,6 @@ namespace nemus::core
         m_palette(PaletteSize),
         m_ram(InternalRamSize)
   {
-    m_logger = logger;
-    m_ppu = ppu;
-    m_input = input;
-
     LoadRom(gameData);
   }
 
