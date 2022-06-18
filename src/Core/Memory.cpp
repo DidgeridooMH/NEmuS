@@ -4,332 +4,238 @@
 #include "Mappers/NROM.h"
 #include "Mappers/MMC1.h"
 
-nemus::core::Memory::Memory(debug::Logger *logger, core::PPU *ppu, core::Input *input,
-                            const std::vector<char> &gameData)
+namespace nemus::core
 {
+  Memory::Memory(debug::Logger *logger, core::PPU *ppu, core::Input *input,
+                 const std::vector<char> &gameData)
+      : m_logger(logger),
+        m_ppu(ppu),
+        m_input(input),
+        m_nameTables({std::vector<uint8_t>(NameTableSize),
+                      std::vector<uint8_t>(NameTableSize),
+                      std::vector<uint8_t>(NameTableSize),
+                      std::vector<uint8_t>(NameTableSize)}),
+        m_palette(PaletteSize),
+        m_ram(InternalRamSize)
+  {
     m_logger = logger;
     m_ppu = ppu;
     m_input = input;
 
-    m_ram = new unsigned char[0x10000];
+    LoadRom(gameData);
+  }
 
-    loadRom(gameData);
-
-    m_logger->write("Memory initialized");
-}
-
-nemus::core::Memory::~Memory()
-{
-    delete[] m_ram;
-    delete m_mapper;
-}
-
-void nemus::core::Memory::loadRom(const std::vector<char> &gameData, const std::string &filename)
-{
-    unsigned char mapperID = (gameData[6] >> 4) & 0xF;
-    mapperID |= (gameData[7] & 0xF0);
-
-    // TODO: Add a mapper enum for easier implementation.
-    switch (mapperID)
+  void Memory::LoadRom(const std::vector<char> &gameData)
+  {
+    switch (static_cast<MapperId>((gameData[6] >> 4) | (gameData[7] & 0xF0)))
     {
-    case 0:
-        m_mapper = new NROM(gameData);
-        break;
-    case 1:
-    {
-        int extOffset = filename.find('.');
-        FileInfo savFile = filename.length() > 0
-                               ? loadSaveFile(filename.substr(0, extOffset))
-                               : FileInfo{.start_of_file = 0, .size = 0};
-
-        if (savFile.size > 0)
-        {
-            m_mapper = new MMC1(gameData, savFile.start_of_file, savFile.size);
-        }
-        else
-        {
-            m_mapper = new MMC1(gameData);
-        }
-        break;
-    }
+    case MapperId::NROM:
+      m_mapper = std::make_unique<NROM>(gameData);
+      break;
+    case MapperId::MMC1:
+      m_mapper = std::make_unique<MMC1>(gameData);
+      break;
     default:
-        m_logger->write("Invalid mapper id...using NROM and hoping for the best.");
-        m_mapper = new NROM(gameData);
-        break;
+      m_logger->write("Invalid mapper id...using NROM and hoping for the best.");
+      m_mapper = std::make_unique<NROM>(gameData);
+      break;
     }
-}
+  }
 
-// TODO: extract this functionality to helper functions.
-nemus::core::FileInfo nemus::core::Memory::loadSaveFile(std::string filename)
-{
-    filename += ".sav";
-
-    std::ifstream file;
-
-    file.open(filename, std::ios::ate | std::ios::binary);
-
-    if (!file)
+  uint16_t Memory::GetAddress(const comp::Registers &registers, comp::AddressMode mode)
+  {
+    switch (mode)
     {
-        return {nullptr, 0};
+    case comp::ADDR_MODE_IMMEDIATE:
+      return registers.pc + 1;
+    case comp::ADDR_MODE_ZERO_PAGE:
+      return ReadByte(registers.pc + 1);
+    case comp::ADDR_MODE_ZERO_PAGE_X:
+      return ReadByte(registers.pc + 1) + registers.x;
+    case comp::ADDR_MODE_ZERO_PAGE_Y:
+      return ReadByte(registers.pc + 1) + registers.y;
+    case comp::ADDR_MODE_ABSOLUTE:
+      return ReadWord(registers.pc + 1);
+    case comp::ADDR_MODE_ABSOLUTE_X:
+      return ReadWord(registers.pc + 1) + registers.x;
+    case comp::ADDR_MODE_ABSOLUTE_Y:
+      return ReadWord(registers.pc + 1) + registers.y;
+    case comp::ADDR_MODE_INDIRECT_X:
+      return ReadWordBug(ReadByte(registers.pc + 1) + registers.x);
+    case comp::ADDR_MODE_INDIRECT_Y:
+      return ReadWordBug(ReadByte(registers.pc + 1)) + registers.y;
+    default:
+      m_logger->write("Unknown address mode!!!");
+      break;
     }
+    return 0;
+  }
 
-    long size = file.tellg();
-    file.seekg(file.beg);
-
-    char *savRam = new char[size];
-
-    file.read(savRam, size);
-
-    file.close();
-
-    return {savRam, size};
-}
-
-unsigned int nemus::core::Memory::readByte(unsigned int address)
-{
-    address &= 0xFFFF;
-
+  uint8_t Memory::ReadByte(uint16_t address)
+  {
     if (address < 0x2000)
     {
-        return m_ram[address % 0x800];
+      return m_ram[address % 0x800];
     }
     else if (address < 0x4000)
     {
-        return m_ppu->readPPU(0x2000 + (address % 8));
+      return m_ppu->readPPU(0x2000 + (address % 8));
     }
     else if (address == 0x4014)
     {
-        return m_ppu->readPPU(0x4014);
+      return m_ppu->readPPU(0x4014);
     }
     else if (address == 0x4016)
     {
-        return m_input->read();
+      return m_input->read();
     }
     else if (address == 0x4017)
     {
+      // TODO: This is a player two.
     }
     else if (address >= 0x6000)
     {
-        return m_mapper->readByte(address);
+      return m_mapper->ReadByte(address);
     }
     else
     {
-        m_logger->write("Illegal Out of Bounds Read at " + std::to_string(address));
-        throw std::runtime_error("Illegal out of bounds read!!!");
-    }
-    return 0;
-}
-
-unsigned int nemus::core::Memory::readByte(comp::Registers registers, comp::AddressMode addr)
-{
-    unsigned int address = 0;
-
-    switch (addr)
-    {
-    case comp::ADDR_MODE_IMMEDIATE:
-        return readByte(registers.pc + 1);
-    case comp::ADDR_MODE_ZERO_PAGE:
-        address = readByte(registers.pc + 1);
-        return readByte(address & 0xFF);
-    case comp::ADDR_MODE_ZERO_PAGE_X:
-        address = readByte(registers.pc + 1);
-        address += registers.x;
-        return readByte(address & 0xFF);
-    case comp::ADDR_MODE_ZERO_PAGE_Y:
-        address = readByte(registers.pc + 1);
-        address += registers.y;
-        return readByte(address & 0xFF);
-    case comp::ADDR_MODE_ABSOLUTE:
-        address = readWord(registers.pc + 1);
-        return readByte(address);
-    case comp::ADDR_MODE_ABSOLUTE_X:
-        address = readWord(registers.pc + 1) + registers.x;
-        return readByte(address);
-    case comp::ADDR_MODE_ABSOLUTE_Y:
-        address = readWord(registers.pc + 1) + registers.y;
-        return readByte(address);
-    case comp::ADDR_MODE_INDIRECT_X:
-        address = readByte(registers.pc + 1) + registers.x;
-        address &= 0xFF;
-        address = readWordBug(address);
-        return readByte(address);
-    case comp::ADDR_MODE_INDIRECT_Y:
-        address = readByte(registers.pc + 1);
-        address = readWordBug(address) + registers.y;
-        return readByte(address);
-    default:
-        m_logger->write("Unknown address mode!!!");
-        break;
+      m_logger->write("Illegal Out of Bounds Read at " + std::to_string(address));
+      throw std::runtime_error("Illegal out of bounds read!!!");
     }
 
     return 0;
-}
+  }
 
-unsigned int nemus::core::Memory::readWordBug(unsigned int address)
-{
+  uint8_t Memory::ReadByte(const comp::Registers &registers, comp::AddressMode mode)
+  {
+    return ReadByte(GetAddress(registers, mode));
+  }
+
+  uint16_t Memory::ReadWordBug(uint16_t address)
+  {
     // Hardware bug causes only low byte to be incremented across pages
-    unsigned int lowByte = readByte(address) & 0xFF;
-    unsigned int highByte = readByte((address & 0xFF00) + ((address + 1) & 0xFF)) & 0xFF;
-    return highByte << 8 | lowByte;
-}
+    uint16_t highByte = ReadByte((address & 0xFF00) + ((address + 1) & 0xFF));
+    return (highByte << 8) | ReadByte(address);
+  }
 
-unsigned int nemus::core::Memory::readWord(unsigned int address)
-{
-    unsigned int lowByte = readByte(address) & 0xFF;
-    unsigned int highByte = readByte(address + 1) & 0xFF;
-    return highByte << 8 | lowByte;
-}
+  uint16_t Memory::ReadWord(uint16_t address)
+  {
+    // Implicit conversion to 16 bits so that the shift left later doesn't truncate.
+    uint16_t highByte = ReadByte(address + 1);
+    return (highByte << 8) | ReadByte(address);
+  }
 
-bool nemus::core::Memory::writeByte(unsigned char data, unsigned int address)
-{
-    address &= 0xFFFF;
-
+  void Memory::WriteByte(uint8_t data, uint16_t address)
+  {
     if (address < 0x2000)
     {
-        m_ram[address % 0x800] = data;
+      m_ram[address % 0x800] = data;
     }
     else if (address < 0x4000)
     {
-        m_ppu->writePPU(data, 0x2000 + (address % 8));
+      m_ppu->writePPU(data, 0x2000 + (address % 8));
     }
     else if (address == 0x4014)
     {
-        m_ppu->writePPU(data, address);
+      m_ppu->writePPU(data, address);
     }
     else if (address == 0x4016)
     {
-        m_input->write(data);
+      m_input->write(data);
     }
     else if (address < 0x4020)
     {
-        // TODO: Implement IO registers
-        return true;
+      // TODO: Implement IO registers
     }
     else if (address >= 0x6000)
     {
-        m_mapper->writeByte(data, address);
+      m_mapper->WriteByte(data, address);
     }
     else
     {
-        m_logger->write("Illegal Out of Bounds Write!!!");
-        throw std::runtime_error("Illegal out of bounds write!!!");
-        return true;
+      m_logger->write("Illegal Out of Bounds Write!!!");
+      throw std::runtime_error("Illegal out of bounds write!!!");
     }
+  }
 
-    return false;
-}
+  void Memory::WriteByte(const comp::Registers &registers, uint8_t src, comp::AddressMode mode)
+  {
+    WriteByte(src, GetAddress(registers, mode));
+  }
 
-void nemus::core::Memory::writeByte(comp::Registers registers, unsigned int src, comp::AddressMode addr)
-{
-    unsigned int address = 0;
-    switch (addr)
+  uint8_t Memory::ReadPPUByte(uint16_t address)
+  {
+    if (address < 0x2000)
     {
-    case comp::ADDR_MODE_IMMEDIATE:
-        writeByte(src, registers.pc + 1);
-        break;
-    case comp::ADDR_MODE_ZERO_PAGE:
-        address = readByte(registers.pc + 1);
-        writeByte(src, address & 0xFF);
-        break;
-    case comp::ADDR_MODE_ZERO_PAGE_X:
-        address = readByte(registers.pc + 1) + registers.x;
-        writeByte(src, address & 0xFF);
-        break;
-    case comp::ADDR_MODE_ZERO_PAGE_Y:
-        address = readByte(registers.pc + 1) + registers.y;
-        writeByte(src, address & 0xFF);
-        break;
-    case comp::ADDR_MODE_ABSOLUTE:
-        address = readWord(registers.pc + 1);
-        writeByte(src, address);
-        break;
-    case comp::ADDR_MODE_ABSOLUTE_X:
-        address = readWord(registers.pc + 1) + registers.x;
-        writeByte(src, address);
-        break;
-    case comp::ADDR_MODE_ABSOLUTE_Y:
-        address = readWord(registers.pc + 1) + registers.y;
-        writeByte(src, address);
-        break;
-    case comp::ADDR_MODE_INDIRECT_X:
-        address = readByte(registers.pc + 1) + registers.x;
-        address &= 0xFF;
-        address = readWordBug(address);
-        writeByte(src, address);
-        break;
-    case comp::ADDR_MODE_INDIRECT_Y:
-        address = readByte(registers.pc + 1);
-        address = readWordBug(address) + registers.y;
-        writeByte(src, address);
-        break;
-    default:
-        m_logger->write("Unknown address mode!!!");
-        break;
+      return m_mapper->ReadBytePPU(address);
     }
-}
+    else if (address < 0x3F00)
+    {
+      return m_nameTables[m_mapper->GetMirroringTable(address)][address % 0x400];
+    }
+    return m_palette[address % 0x20];
+  }
 
-uint8_t nemus::core::Memory::readPPUByte(unsigned int address)
-{
-    return m_mapper->readBytePPU(address);
-}
+  void Memory::WritePPUByte(uint8_t data, uint16_t address)
+  {
+    if (address < 0x2000)
+    {
+      m_mapper->WriteBytePPU(data, address);
+    }
+    else if (address < 0x3F00)
+    {
+      m_nameTables[m_mapper->GetMirroringTable(address)][address % 0x400] = data;
+    }
+    m_palette[address % 0x20] = data;
+  }
 
-void nemus::core::Memory::writePPUByte(unsigned char data, unsigned address)
-{
-    m_mapper->writeBytePPU(data, address);
-}
+  void Memory::Push(uint8_t data, uint8_t &sp)
+  {
+    m_ram[sp-- + 0x100] = data;
+  }
 
-void nemus::core::Memory::push(unsigned int data, unsigned int &sp)
-{
-    m_ram[sp + 0x100] = (unsigned char)data;
-    sp--;
-    sp &= 0xFF;
-}
+  void Memory::Push16(uint16_t data, uint8_t &sp)
+  {
+    Push(data >> 8, sp);
+    Push(data, sp);
+  }
 
-void nemus::core::Memory::push16(unsigned int data, unsigned int &sp)
-{
-    unsigned int highByte = (data >> 8) & 0xFF;
-    push(highByte, sp);
-    unsigned int lowByte = data & 0xFF;
-    push(lowByte, sp);
-}
+  uint8_t Memory::Pop(uint8_t &sp)
+  {
+    return m_ram[++sp + 0x100];
+  }
 
-unsigned int nemus::core::Memory::pop(unsigned int &sp)
-{
-    sp++;
-    sp &= 0xFF;
-    return (m_ram[sp + 0x100] & 0xFF);
-}
+  uint16_t Memory::Pop16(uint8_t &sp)
+  {
+    uint16_t lowByte = Pop(sp);
+    uint16_t highByte = Pop(sp);
 
-unsigned int nemus::core::Memory::pop16(unsigned int &sp)
-{
-    unsigned int lowByte = pop(sp);
-    unsigned int highByte = pop(sp);
+    return (highByte << 8) | lowByte;
+  }
 
-    unsigned int address = ((highByte << 8) & 0xFF00) | (lowByte & 0xFF);
-
-    return address;
-}
-
-unsigned int nemus::core::Memory::checkPageCross(comp::Registers registers, comp::AddressMode mode)
-{
+  bool Memory::CheckPageCross(const comp::Registers &registers, comp::AddressMode mode)
+  {
     switch (mode)
     {
     case comp::ADDR_MODE_ABSOLUTE_X:
     {
-        const auto address = readWord(registers.pc + 1);
-        return ((address + registers.x) & 0xFF00) != (address & 0xFF00);
+      const auto address = ReadWord(registers.pc + 1);
+      return ((address + registers.x) & 0xFF00) != (address & 0xFF00);
     }
     case comp::ADDR_MODE_ABSOLUTE_Y:
     {
-        const auto address = readWord(registers.pc + 1);
-        return ((address + registers.y) & 0xFF00) != (address & 0xFF00);
+      const auto address = ReadWord(registers.pc + 1);
+      return ((address + registers.y) & 0xFF00) != (address & 0xFF00);
     }
     case comp::ADDR_MODE_INDIRECT_Y:
     {
-        auto address = readByte(registers.pc + 1);
-        return (address & 0xFF00) != ((readWordBug(address) + registers.y) & 0xFF00);
+      auto address = ReadByte(registers.pc + 1);
+      return (address & 0xFF00) != ((ReadWordBug(address) + registers.y) & 0xFF00);
     }
     default:
-        return 0;
+      break;
     }
+
+    return false;
+  }
 }

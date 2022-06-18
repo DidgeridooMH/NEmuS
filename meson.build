@@ -12,7 +12,6 @@ quazip = subproject('quazip')
 quazip_dep = quazip.get_variable('quazip_dep')
 
 src = [
-  'src/main.cpp',
   'src/Core/NES.cpp',
   'src/Core/CPU.cpp',
   'src/Core/Memory.cpp',
@@ -35,8 +34,30 @@ src += qt.compile_moc(
     'src/UI/Debug/PatternTableViewer.hpp',
     'src/UI/Debug/PatternTableImage.hpp'])
 
+incdir = ['./src']
+deps = [qt6_dep, quazip_dep, fmt_dep]
+
 executable('NEmuS',
-           src,
-           include_directories : ['./src'],
-           dependencies : [qt6_dep, quazip_dep, fmt_dep],
+           ['src/main.cpp',src],
+           include_directories : incdir,
+           dependencies : deps,
            install : true)
+
+# ======= Tests =======
+
+gtest = subproject('gtest')
+gtest_dep = gtest.get_variable('gtest_main_dep')
+
+mapper_test_src = [
+  'test/mappers/nrom_test.cpp'
+]
+
+mapper_test = executable(
+  'mapper_test',
+  [mapper_test_src, src],
+  include_directories : incdir,
+  dependencies : [gtest_dep, deps]
+)
+
+test('mapper_test', mapper_test)
+

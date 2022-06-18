@@ -32,6 +32,8 @@ namespace nemus::core
         uint16_t fineYScroll : 3;
     };
 
+    class CPU;
+    class Memory;
     class PPU
     {
     public:

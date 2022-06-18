@@ -46,3 +46,6 @@ roms/
 subprojects/*
 !subprojects/*.wrap
 .env
+
+*.log
+*.hex

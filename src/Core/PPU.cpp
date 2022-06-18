@@ -74,7 +74,7 @@ namespace nemus::core
               colorIndex = FetchBackgroundPixel();
             }
 
-            auto color = Palette[m_memory->readPPUByte(0x3F00 | colorIndex)];
+            auto color = Palette[m_memory->ReadPPUByte(0x3F00 | colorIndex)];
 
             m_frameBuffers[m_activeBuffer][m_cycle - 1 + m_scanline * SCREEN_WIDTH] = color;
           }
@@ -107,7 +107,7 @@ namespace nemus::core
              * Name table fetch only uses the lower 12 bits of v
              * as an offset into 0x2000 (the name table locations).
              */
-            m_nameTableBuffer = m_memory->readPPUByte((m_v.addr & 0xFFF) | 0x2000);
+            m_nameTableBuffer = m_memory->ReadPPUByte((m_v.addr & 0xFFF) | 0x2000);
             break;
           case 3:
             /*
@@ -121,7 +121,7 @@ namespace nemus::core
               uint16_t y = m_v.r.coarseYScroll >> 2;
               uint16_t attributeAddress = 0x23C0 | m_v.r.nameTableSelect << 10 | (y << 3) | x;
               auto shift = (m_v.r.coarseXScroll & 0x2) | ((m_v.r.coarseYScroll & 0x2) << 1);
-              m_attributeBuffer = (m_memory->readPPUByte(attributeAddress) >> shift) & 3;
+              m_attributeBuffer = (m_memory->ReadPPUByte(attributeAddress) >> shift) & 3;
             }
             break;
           case 5:
@@ -136,7 +136,7 @@ namespace nemus::core
                 (static_cast<uint16_t>(m_ppuCtrl.bg_tile_select) << 12) |
                 (m_nameTableBuffer << 4) |
                 m_v.r.fineYScroll;
-            m_patternLowBuffer = m_memory->readPPUByte(patternTableAddress);
+            m_patternLowBuffer = m_memory->ReadPPUByte(patternTableAddress);
             break;
           }
           case 7:
@@ -145,7 +145,7 @@ namespace nemus::core
             auto patternTableAddress = (static_cast<uint16_t>(m_ppuCtrl.bg_tile_select) << 12) |
                                        (m_nameTableBuffer << 4) |
                                        0x8 | m_v.r.fineYScroll;
-            m_patternHighBuffer = m_memory->readPPUByte(patternTableAddress);
+            m_patternHighBuffer = m_memory->ReadPPUByte(patternTableAddress);
             break;
           }
           default:
@@ -292,8 +292,8 @@ namespace nemus::core
         spriteAddr += m_scanline - m_oamEntries[i].y;
       }
 
-      unsigned int plane0 = m_memory->readPPUByte(spriteAddr);
-      unsigned int plane1 = m_memory->readPPUByte(spriteAddr + 8);
+      unsigned int plane0 = m_memory->ReadPPUByte(spriteAddr);
+      unsigned int plane1 = m_memory->ReadPPUByte(spriteAddr + 8);
 
       for (int bit = 7; bit >= 0; bit--)
       {
@@ -474,7 +474,7 @@ namespace nemus::core
   {
     auto value = m_dataBuffer;
 
-    m_dataBuffer = m_memory->readPPUByte(m_v.addr);
+    m_dataBuffer = m_memory->ReadPPUByte(m_v.addr);
 
     if (m_v.addr >= 0x3F00)
     {
@@ -484,28 +484,6 @@ namespace nemus::core
     m_v.addr += m_ppuCtrl.inc_mode ? 32 : 1;
 
     return value;
-
-    // uint8_t value = m_memory->readPPUByte(m_v.addr);
-
-    // if (m_v.addr % 0x4000 < 0x3F00)
-    // {
-    //   std::swap(m_dataBuffer, value);
-    // }
-    // else
-    // {
-    //   m_dataBuffer = m_memory->readPPUByte(m_v.addr - 0x1000);
-    // }
-
-    // if (!m_ppuCtrl.inc_mode)
-    // {
-    //   m_v.addr += 1;
-    // }
-    // else
-    // {
-    //   m_v.addr += 32;
-    // }
-
-    // return value;
   }
 
   void PPU::writePPUScroll(uint8_t data)
@@ -528,7 +506,7 @@ namespace nemus::core
 
   void PPU::writeVRAM(unsigned char data, int address)
   {
-    m_memory->writePPUByte(data, address);
+    m_memory->WritePPUByte(data, address);
   }
 
   void PPU::dumpRam(std::string filename)
@@ -538,7 +516,7 @@ namespace nemus::core
 
     for (int i = 0; i < 0x4000; i++)
     {
-      output << static_cast<uint8_t>(m_memory->readPPUByte(i));
+      output << static_cast<uint8_t>(m_memory->ReadPPUByte(i));
     }
 
     output.close();
@@ -550,7 +528,7 @@ namespace nemus::core
 
     for (int i = 0; i < 0x100; i++)
     {
-      m_oam[(m_oamAddr + i) % 0x100] = (unsigned char)(m_memory->readByte(cpuAddress + i));
+      m_oam[(m_oamAddr + i) % 0x100] = (unsigned char)(m_memory->ReadByte(cpuAddress + i));
     }
   }
 

@@ -1,53 +1,40 @@
-#include <sstream>
 #include <QMessageBox>
+#include <fmt/format.h>
 
 #include <Core/Opcodes.hpp>
-
-#include "CPU.h"
-#include "Memory.h"
+#include <Core/CPU.h>
 
 nemus::core::CPU::CPU(Memory *memory, debug::Logger *logger)
+    : m_reg(comp::Registers{
+          .x = 0,
+          .y = 0,
+          .a = 0,
+          .pc = memory->ReadWord(0xFFFCU),
+          .sp = 0xFD,
+          .pFull = 0x34}),
+      m_interrupt(comp::INT_NONE),
+      m_memory(memory),
+      m_logger(logger),
+      m_running(true)
 {
-    resetRegisters();
-
-    m_interrupt = comp::INT_NONE;
-
-    m_memory = memory;
-
-    m_logger = logger;
-
-    m_reg.pc = m_memory->readWord(0xFFFC);
-
-    std::stringstream sstream;
-    sstream << "Entry point: " << std::hex << m_reg.pc;
-
-    m_logger->write(sstream.str());
-
-    setFlags(0x34);
-
+    m_logger->write(fmt::format("Entry Point: {:X}", m_reg.pc));
     m_logger->write("CPU Initialized");
-
     m_running = true;
 }
 
 int nemus::core::CPU::tick()
 {
-    if (m_reg.pc == 0xA080)
-    {
-        m_logger->write("hit");
-    }
-
     // NMI
     if (m_interrupt != comp::INT_NONE)
     {
-        if (m_interrupt == comp::INT_NMI || !m_flags.I)
+        if (m_interrupt == comp::INT_NMI || !m_reg.p.interruptDisable)
         {
             interrupt();
             return 0;
         }
     }
 
-    unsigned int op = m_memory->readByte(m_reg.pc);
+    unsigned int op = m_memory->ReadByte(m_reg.pc);
     unsigned int pageCycle = 0;
 
     switch (op)
@@ -77,55 +64,47 @@ int nemus::core::CPU::tick()
     case 0xFC:
     case 0x80:
     case 0xEA:
-        m_reg.p = generateFlags();
         m_logger->writeInstruction(m_reg, "NOP", 0, comp::ADDR_MODE_IMPLIED);
         break;
 
     // SEI
     case 0x78:
-        setFlags(comp::FLAG_INTERRUPT);
-        m_reg.p = generateFlags();
+        m_reg.p.interruptDisable = 1;
         m_logger->writeInstruction(m_reg, "SEI", 0, comp::ADDR_MODE_IMPLIED);
         break;
 
     // SEC
     case 0x38:
-        setFlags(comp::FLAG_CARRY);
-        m_reg.p = generateFlags();
+        m_reg.p.carry = 1;
         m_logger->writeInstruction(m_reg, "SEC", 0, comp::ADDR_MODE_IMPLIED);
         break;
 
     // SED
     case 0xF8:
-        setFlags(comp::FLAG_DECIMAL);
-        m_reg.p = generateFlags();
+        m_reg.p.decimal = 1;
         m_logger->writeInstruction(m_reg, "SED", 0, comp::ADDR_MODE_IMPLIED);
         break;
     // CLV
     case 0xB8:
-        unsetFlags(comp::FLAG_OVERFLOW);
-        m_reg.p = generateFlags();
+        m_reg.p.overflow = 0;
         m_logger->writeInstruction(m_reg, "CLV", 0, comp::ADDR_MODE_IMPLIED);
         break;
 
     // CLC
     case 0x18:
-        unsetFlags(comp::FLAG_CARRY);
-        m_reg.p = generateFlags();
+        m_reg.p.carry = 0;
         m_logger->writeInstruction(m_reg, "CLC", 0, comp::ADDR_MODE_IMPLIED);
         break;
 
     // CLI
     case 0x58:
-        unsetFlags(comp::FLAG_INTERRUPT);
-        m_reg.p = generateFlags();
+        m_reg.p.interruptDisable = 0;
         m_logger->writeInstruction(m_reg, "CLI", 0, comp::ADDR_MODE_IMPLIED);
         break;
 
     // CLD
     case 0xD8:
-        unsetFlags(comp::FLAG_DECIMAL);
-        m_reg.p = generateFlags();
+        m_reg.p.decimal = 0;
         m_logger->writeInstruction(m_reg, "CLD", 0, comp::ADDR_MODE_IMPLIED);
         break;
 
@@ -143,18 +122,18 @@ int nemus::core::CPU::tick()
         load(m_reg.a, comp::ADDR_MODE_ABSOLUTE);
         break;
     case 0xBD:
-        pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_X);
+        pageCycle = m_memory->CheckPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_X);
         load(m_reg.a, comp::ADDR_MODE_ABSOLUTE_X);
         break;
     case 0xB9:
-        pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_Y);
+        pageCycle = m_memory->CheckPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_Y);
         load(m_reg.a, comp::ADDR_MODE_ABSOLUTE_Y);
         break;
     case 0xA1:
         load(m_reg.a, comp::ADDR_MODE_INDIRECT_X);
         break;
     case 0xB1:
-        pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_INDIRECT_Y);
+        pageCycle = m_memory->CheckPageCross(m_reg, comp::ADDR_MODE_INDIRECT_Y);
         load(m_reg.a, comp::ADDR_MODE_INDIRECT_Y);
         break;
 
@@ -172,7 +151,7 @@ int nemus::core::CPU::tick()
         load(m_reg.x, comp::ADDR_MODE_ABSOLUTE);
         break;
     case 0xBE:
-        pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_Y);
+        pageCycle = m_memory->CheckPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_Y);
         load(m_reg.x, comp::ADDR_MODE_ABSOLUTE_Y);
         break;
 
@@ -190,7 +169,7 @@ int nemus::core::CPU::tick()
         load(m_reg.y, comp::ADDR_MODE_ABSOLUTE);
         break;
     case 0xBC:
-        pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_Y);
+        pageCycle = m_memory->CheckPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_Y);
         load(m_reg.y, comp::ADDR_MODE_ABSOLUTE_X);
         break;
 
@@ -242,15 +221,14 @@ int nemus::core::CPU::tick()
     // TXS
     case 0x9A:
         m_reg.sp = m_reg.x;
-        m_reg.p = generateFlags();
         m_logger->writeInstruction(m_reg, "TXS", 0, comp::ADDR_MODE_IMMEDIATE);
         break;
 
     // TSX
     case 0xBA:
         m_reg.x = m_reg.sp;
-        checkFlags(m_reg.x, comp::FLAG_NEGATIVE | comp::FLAG_ZERO);
-        m_reg.p = generateFlags();
+        m_reg.p.zero = m_reg.x == 0;
+        m_reg.p.negative = m_reg.x >> 7;
         m_logger->writeInstruction(m_reg, "TSX", 0, comp::ADDR_MODE_IMMEDIATE);
         break;
 
@@ -258,67 +236,59 @@ int nemus::core::CPU::tick()
     case 0x10:
     {
         auto address = m_reg.pc;
-        pageCycle = !m_flags.N;
-        branch(!m_flags.N);
-        pageCycle += ((address & 0xFF00) != m_reg.pc + INSTRUCTION_SIZES[op]) * 2;
-        break;
+        branch(!m_reg.p.negative);
+        pageCycle = ~m_reg.p.negative + ((address & 0xFF00) != m_reg.pc + INSTRUCTION_SIZES[op]) * 2;
     }
+    break;
     case 0x30:
     {
         auto address = m_reg.pc;
-        pageCycle = m_flags.N;
-        branch(m_flags.N);
-        pageCycle += ((address & 0xFF00) != m_reg.pc + INSTRUCTION_SIZES[op]) * 2;
-        break;
+        branch(m_reg.p.negative);
+        pageCycle = m_reg.p.negative + ((address & 0xFF00) != m_reg.pc + INSTRUCTION_SIZES[op]) * 2;
     }
+    break;
     case 0x50:
     {
         auto address = m_reg.pc;
-        pageCycle = !m_flags.V;
-        branch(!m_flags.V);
-        pageCycle += ((address & 0xFF00) != m_reg.pc + INSTRUCTION_SIZES[op]) * 2;
-        break;
+        branch(!m_reg.p.overflow);
+        pageCycle = ~m_reg.p.overflow + ((address & 0xFF00) != m_reg.pc + INSTRUCTION_SIZES[op]) * 2;
     }
+    break;
     case 0x70:
     {
         auto address = m_reg.pc;
-        pageCycle = m_flags.V;
-        branch(m_flags.V);
-        pageCycle += ((address & 0xFF00) != m_reg.pc + INSTRUCTION_SIZES[op]) * 2;
-        break;
+        branch(m_reg.p.overflow);
+        pageCycle = m_reg.p.overflow + ((address & 0xFF00) != m_reg.pc + INSTRUCTION_SIZES[op]) * 2;
     }
+    break;
     case 0x90:
     {
         auto address = m_reg.pc;
-        pageCycle = !m_flags.C;
-        branch(!m_flags.C);
-        pageCycle += ((address & 0xFF00) != m_reg.pc + INSTRUCTION_SIZES[op]) * 2;
-        break;
+        branch(!m_reg.p.carry);
+        pageCycle = ~m_reg.p.carry + ((address & 0xFF00) != m_reg.pc + INSTRUCTION_SIZES[op]) * 2;
     }
+    break;
     case 0xB0:
     {
         auto address = m_reg.pc;
-        pageCycle = m_flags.C;
-        branch(m_flags.C);
-        pageCycle += ((address & 0xFF00) != m_reg.pc + INSTRUCTION_SIZES[op]) * 2;
-        break;
+        branch(m_reg.p.carry);
+        pageCycle = m_reg.p.carry + ((address & 0xFF00) != m_reg.pc + INSTRUCTION_SIZES[op]) * 2;
     }
+    break;
     case 0xD0:
     {
         auto address = m_reg.pc;
-        pageCycle = !m_flags.Z;
-        branch(!m_flags.Z);
-        pageCycle += ((address & 0xFF00) != m_reg.pc + INSTRUCTION_SIZES[op]) * 2;
-        break;
+        branch(!m_reg.p.zero);
+        pageCycle = ~m_reg.p.zero + ((address & 0xFF00) != m_reg.pc + INSTRUCTION_SIZES[op]) * 2;
     }
+    break;
     case 0xF0:
     {
         auto address = m_reg.pc;
-        pageCycle = m_flags.Z;
-        branch(m_flags.Z);
-        pageCycle += ((address & 0xFF00) != m_reg.pc + INSTRUCTION_SIZES[op]) * 2;
-        break;
+        branch(m_reg.p.zero);
+        pageCycle = m_reg.p.zero + ((address & 0xFF00) != m_reg.pc + INSTRUCTION_SIZES[op]) * 2;
     }
+    break;
 
     // CMP
     case 0xC9:
@@ -334,18 +304,18 @@ int nemus::core::CPU::tick()
         compare(m_reg.a, comp::ADDR_MODE_ABSOLUTE);
         break;
     case 0xDD:
-        pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_X);
+        pageCycle = m_memory->CheckPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_X);
         compare(m_reg.a, comp::ADDR_MODE_ABSOLUTE_X);
         break;
     case 0xD9:
-        pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_Y);
+        pageCycle = m_memory->CheckPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_Y);
         compare(m_reg.a, comp::ADDR_MODE_ABSOLUTE_Y);
         break;
     case 0xC1:
         compare(m_reg.a, comp::ADDR_MODE_INDIRECT_X);
         break;
     case 0xD1:
-        pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_INDIRECT_Y);
+        pageCycle = m_memory->CheckPageCross(m_reg, comp::ADDR_MODE_INDIRECT_Y);
         compare(m_reg.a, comp::ADDR_MODE_INDIRECT_Y);
         break;
 
@@ -457,18 +427,18 @@ int nemus::core::CPU::tick()
         ora(comp::ADDR_MODE_ABSOLUTE);
         break;
     case 0x1D:
-        pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_X);
+        pageCycle = m_memory->CheckPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_X);
         ora(comp::ADDR_MODE_ABSOLUTE_X);
         break;
     case 0x19:
-        pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_Y);
+        pageCycle = m_memory->CheckPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_Y);
         ora(comp::ADDR_MODE_ABSOLUTE_Y);
         break;
     case 0x01:
         ora(comp::ADDR_MODE_INDIRECT_X);
         break;
     case 0x11:
-        pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_INDIRECT_Y);
+        pageCycle = m_memory->CheckPageCross(m_reg, comp::ADDR_MODE_INDIRECT_Y);
         ora(comp::ADDR_MODE_INDIRECT_Y);
         break;
 
@@ -486,18 +456,18 @@ int nemus::core::CPU::tick()
         xora(comp::ADDR_MODE_ABSOLUTE);
         break;
     case 0x5D:
-        pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_X);
+        pageCycle = m_memory->CheckPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_X);
         xora(comp::ADDR_MODE_ABSOLUTE_X);
         break;
     case 0x59:
-        pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_Y);
+        pageCycle = m_memory->CheckPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_Y);
         xora(comp::ADDR_MODE_ABSOLUTE_Y);
         break;
     case 0x41:
         xora(comp::ADDR_MODE_INDIRECT_X);
         break;
     case 0x51:
-        pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_INDIRECT_Y);
+        pageCycle = m_memory->CheckPageCross(m_reg, comp::ADDR_MODE_INDIRECT_Y);
         xora(comp::ADDR_MODE_INDIRECT_Y);
         break;
 
@@ -530,32 +500,32 @@ int nemus::core::CPU::tick()
     // TXA
     case 0x8A:
         m_reg.a = m_reg.x;
-        checkFlags(m_reg.a, comp::FLAG_NEGATIVE | comp::FLAG_ZERO);
-        m_reg.p = generateFlags();
+        m_reg.p.zero = m_reg.a == 0;
+        m_reg.p.negative = m_reg.a >> 7;
         m_logger->writeInstruction(m_reg, "TXA", m_reg.a, comp::ADDR_MODE_IMMEDIATE);
         break;
 
     // TAX
     case 0xAA:
         m_reg.x = m_reg.a;
-        checkFlags(m_reg.x, comp::FLAG_NEGATIVE | comp::FLAG_ZERO);
-        m_reg.p = generateFlags();
+        m_reg.p.zero = m_reg.x == 0;
+        m_reg.p.negative = m_reg.x >> 7;
         m_logger->writeInstruction(m_reg, "TAX", m_reg.x, comp::ADDR_MODE_IMMEDIATE);
         break;
 
     // TAY
     case 0xA8:
         m_reg.y = m_reg.a;
-        checkFlags(m_reg.y, comp::FLAG_NEGATIVE | comp::FLAG_ZERO);
-        m_reg.p = generateFlags();
+        m_reg.p.zero = m_reg.y == 0;
+        m_reg.p.negative = m_reg.y >> 7;
         m_logger->writeInstruction(m_reg, "TAY", m_reg.y, comp::ADDR_MODE_IMPLIED);
         break;
 
     // TYA
     case 0x98:
         m_reg.a = m_reg.y;
-        checkFlags(m_reg.a, comp::FLAG_NEGATIVE | comp::FLAG_ZERO);
-        m_reg.p = generateFlags();
+        m_reg.p.zero = m_reg.a == 0;
+        m_reg.p.negative = m_reg.a >> 7;
         m_logger->writeInstruction(m_reg, "TYA", m_reg.a, comp::ADDR_MODE_IMPLIED);
         break;
 
@@ -629,34 +599,29 @@ int nemus::core::CPU::tick()
 
     // PHA
     case 0x48:
-        m_memory->push(m_reg.a, m_reg.sp);
-        m_reg.p = generateFlags();
+        m_memory->Push(m_reg.a, m_reg.sp);
         m_logger->writeInstruction(m_reg, "pha", m_reg.a, comp::ADDR_MODE_IMPLIED);
         break;
 
     // PLA
     case 0x68:
-        m_reg.a = m_memory->pop(m_reg.sp);
-        checkFlags(m_reg.a, comp::FLAG_NEGATIVE | comp::FLAG_ZERO);
-        m_reg.p = generateFlags();
+        m_reg.a = m_memory->Pop(m_reg.sp);
+        m_reg.p.zero = m_reg.a == 0;
+        m_reg.p.negative = m_reg.a >> 7;
         m_logger->writeInstruction(m_reg, "pla", m_reg.a, comp::ADDR_MODE_IMPLIED);
         break;
 
     // PHP
     case 0x08:
-        setFlags(comp::FLAG_PUSHED);
-        m_memory->push(generateFlags(), m_reg.sp);
-        unsetFlags(comp::FLAG_PUSHED);
-        m_reg.p = generateFlags();
-        m_logger->writeInstruction(m_reg, "php", generateFlags(), comp::ADDR_MODE_IMPLIED);
+        m_memory->Push(m_reg.pFull | 0x3, m_reg.sp);
+        m_logger->writeInstruction(m_reg, "php", m_reg.pFull, comp::ADDR_MODE_IMPLIED);
         break;
 
     // PLP
     case 0x28:
-        setFlags(m_memory->pop(m_reg.sp));
-        m_flags.P = false;
-        m_reg.p = generateFlags() & ~0x30;
-        m_logger->writeInstruction(m_reg, "plp", generateFlags(), comp::ADDR_MODE_IMPLIED);
+        m_reg.pFull = m_memory->Pop(m_reg.sp);
+        m_reg.p.pushed = 0;
+        m_logger->writeInstruction(m_reg, "plp", m_reg.pFull, comp::ADDR_MODE_IMPLIED);
         break;
 
     // ADC
@@ -673,18 +638,18 @@ int nemus::core::CPU::tick()
         adc(comp::ADDR_MODE_ABSOLUTE);
         break;
     case 0x7D:
-        pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_X);
+        pageCycle = m_memory->CheckPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_X);
         adc(comp::ADDR_MODE_ABSOLUTE_X);
         break;
     case 0x79:
-        pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_Y);
+        pageCycle = m_memory->CheckPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_Y);
         adc(comp::ADDR_MODE_ABSOLUTE_Y);
         break;
     case 0x61:
         adc(comp::ADDR_MODE_INDIRECT_X);
         break;
     case 0x71:
-        pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_INDIRECT_Y);
+        pageCycle = m_memory->CheckPageCross(m_reg, comp::ADDR_MODE_INDIRECT_Y);
         adc(comp::ADDR_MODE_INDIRECT_Y);
         break;
 
@@ -702,18 +667,18 @@ int nemus::core::CPU::tick()
         subtract(comp::ADDR_MODE_ABSOLUTE);
         break;
     case 0xFD:
-        pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_X);
+        pageCycle = m_memory->CheckPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_X);
         subtract(comp::ADDR_MODE_ABSOLUTE_X);
         break;
     case 0xF9:
-        pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_Y);
+        pageCycle = m_memory->CheckPageCross(m_reg, comp::ADDR_MODE_ABSOLUTE_Y);
         subtract(comp::ADDR_MODE_ABSOLUTE_Y);
         break;
     case 0xE1:
         subtract(comp::ADDR_MODE_INDIRECT_X);
         break;
     case 0xF1:
-        pageCycle = m_memory->checkPageCross(m_reg, comp::ADDR_MODE_INDIRECT_Y);
+        pageCycle = m_memory->CheckPageCross(m_reg, comp::ADDR_MODE_INDIRECT_Y);
         subtract(comp::ADDR_MODE_INDIRECT_Y);
         break;
 
@@ -829,31 +794,30 @@ int nemus::core::CPU::tick()
 
     // RTI
     case 0x40:
-        setFlags(m_memory->pop(m_reg.sp) & ~0x30);
-        m_reg.pc = m_memory->pop16(m_reg.sp) - 1;
-
-        m_reg.p = generateFlags();
+        m_reg.pFull = m_memory->Pop(m_reg.sp);
+        m_reg.p.pushed = 0;
+        m_reg.pc = m_memory->Pop16(m_reg.sp) - 1;
         m_logger->writeInstruction(m_reg, "rti", m_reg.pc, comp::ADDR_MODE_IMPLIED);
         break;
 
     // BRK
     case 0x00:
-        m_memory->push16(m_reg.pc + 2, m_reg.sp);
-        setFlags(comp::FLAG_PUSHED);
-        m_memory->push(generateFlags(), m_reg.sp);
-        unsetFlags(comp::FLAG_PUSHED);
-        m_reg.p = generateFlags();
-
-        setFlags(comp::FLAG_INTERRUPT);
-        m_reg.pc = m_memory->readWord(0xFFFE) - 1;
+        m_memory->Push16(m_reg.pc + 2, m_reg.sp);
+        m_memory->Push(m_reg.pFull | 0x30, m_reg.sp);
+        m_reg.p.interruptDisable = 1;
+        m_reg.pc = m_memory->ReadWord(0xFFFE) - 1;
         break;
 
     default:
         m_logger->writeError(OPCODES[op], m_reg.pc);
-        std::stringstream msg;
-        msg << "Unknown opcode $" << std::hex << op << ":" << OPCODES[op] << " at $" << m_reg.pc;
-        QMessageBox *msg_box = new QMessageBox(QMessageBox::Critical, "Unimplemented Opcode", msg.str().c_str(), QMessageBox::StandardButton::Ok);
-        msg_box->exec();
+        QMessageBox(
+            QMessageBox::Critical,
+            "Unimplemented Opcode",
+            QString::fromStdString(
+                fmt::format("Unknown Opcode: ${:X}:{} at a ${:X}",
+                            op, OPCODES[op], m_reg.pc)),
+            QMessageBox::StandardButton::Ok)
+            .exec();
         m_running = false;
         return 0;
     }
@@ -869,30 +833,30 @@ void nemus::core::CPU::interrupt()
     {
     case comp::INT_NMI:
     {
-        m_memory->push16(m_reg.pc, m_reg.sp);
-        m_memory->push(generateFlags(), m_reg.sp);
+        m_memory->Push16(m_reg.pc, m_reg.sp);
+        m_memory->Push(m_reg.pFull, m_reg.sp);
 
-        unsigned int address = m_memory->readWord(0xFFFA);
+        unsigned int address = m_memory->ReadWord(0xFFFA);
 
         m_reg.pc = address;
 
         m_interrupt = comp::INT_NONE;
 
-        setFlags(comp::FLAG_INTERRUPT);
+        m_reg.p.interruptDisable = 1;
 
         m_logger->write("NMI has occurred!\n");
     }
     break;
     case comp::INT_IRQ:
     {
-        m_memory->push16(m_reg.pc, m_reg.sp);
-        m_memory->push(generateFlags(), m_reg.sp);
+        m_memory->Push16(m_reg.pc, m_reg.sp);
+        m_memory->Push(m_reg.pFull, m_reg.sp);
 
-        unsigned int address = m_memory->readWord(0xFFFE);
+        unsigned int address = m_memory->ReadWord(0xFFFE);
 
         m_reg.pc = address;
 
-        setFlags(comp::FLAG_INTERRUPT);
+        m_reg.p.interruptDisable = 1;
 
         m_interrupt = comp::INT_NONE;
         m_logger->write("IRQ has occured!\n");
@@ -908,8 +872,7 @@ void nemus::core::CPU::interrupt()
 
 void nemus::core::CPU::resetRegisters()
 {
-    m_reg.p = 0x34;
-    setFlags(0x34);
+    m_reg.pFull = 0x34;
     m_reg.a = 0;
     m_reg.x = 0;
     m_reg.y = 0;
@@ -918,30 +881,26 @@ void nemus::core::CPU::resetRegisters()
 
 void nemus::core::CPU::adc(comp::AddressMode addr)
 {
-    unsigned int operand = m_memory->readByte(m_reg, addr);
+    uint16_t operand = m_memory->ReadByte(m_reg, addr);
+    uint16_t result = m_reg.a + operand + m_reg.p.carry;
 
-    unsigned int result = m_reg.a + operand + (int)(m_flags.C);
+    m_reg.p.overflow = ~(m_reg.a ^ operand) & (m_reg.a ^ result) & 0x80;
+    m_reg.p.carry = result > 0xFF;
 
-    m_flags.V = ~(m_reg.a ^ operand) & (m_reg.a ^ result) & 0x80;
-
-    m_reg.a = result & 0xFF;
-
-    m_flags.C = result > 0xFF;
-
-    checkFlags(result & 0xFF, comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
-    m_reg.p = generateFlags();
+    m_reg.a = result;
+    m_reg.p.zero = m_reg.a == 0;
+    m_reg.p.negative = m_reg.a >> 7;
 
     m_logger->writeInstruction(m_reg, "adc", result, addr);
 }
 
 void nemus::core::CPU::bitAnd(comp::AddressMode addr)
 {
-    unsigned int operand = m_memory->readByte(m_reg, addr);
+    auto operand = m_memory->ReadByte(m_reg, addr);
 
-    m_reg.a = (operand & m_reg.a) & 0xFF;
-
-    checkFlags(m_reg.a, comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
-    m_reg.p = generateFlags();
+    m_reg.a = operand & m_reg.a;
+    m_reg.p.zero = m_reg.a == 0;
+    m_reg.p.negative = m_reg.a >> 7;
 
     m_logger->writeInstruction(m_reg, "and", operand, addr);
 }
@@ -950,421 +909,230 @@ void nemus::core::CPU::asl(comp::AddressMode addr)
 {
     if (addr == comp::ADDR_MODE_ACCUMULATOR)
     {
-        m_flags.C = (bool)(m_reg.a & 0x80);
-
-        m_reg.a = (m_reg.a << 1) & 0xFF;
-
-        checkFlags(m_reg.a, comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
+        m_reg.p.carry = m_reg.a >> 7;
+        m_reg.a <<= 1;
+        m_reg.p.zero = m_reg.a == 0;
+        m_reg.p.negative = m_reg.a >> 7;
     }
     else
     {
-        unsigned int operand = m_memory->readByte(m_reg, addr);
-
-        m_flags.C = (bool)(operand & 0x80);
-
-        operand = (operand << 1) & 0xFF;
-
-        checkFlags(operand, comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
-
-        m_memory->writeByte(m_reg, operand, addr);
+        auto operand = m_memory->ReadByte(m_reg, addr);
+        m_reg.p.carry = operand >> 7;
+        operand <<= 1;
+        m_reg.p.zero = operand == 0;
+        m_reg.p.negative = operand >> 7;
+        m_memory->WriteByte(m_reg, operand, addr);
     }
-
-    m_reg.p = generateFlags();
     m_logger->writeInstruction(m_reg, "asl", 0, addr);
 }
 
 void nemus::core::CPU::branch(bool doJump)
 {
-    auto b = static_cast<signed char>(m_memory->readByte(m_reg.pc + 1));
-
-    m_reg.p = generateFlags();
-    m_logger->writeInstruction(m_reg, "branch", static_cast<int>(b) & 0xFF, comp::ADDR_MODE_IMMEDIATE);
-
+    auto b = static_cast<int8_t>(m_memory->ReadByte(m_reg.pc + 1));
     if (doJump)
     {
         m_reg.pc += b;
     }
+    m_logger->writeInstruction(m_reg, "branch", b, comp::ADDR_MODE_IMMEDIATE);
 }
 
 void nemus::core::CPU::bit(comp::AddressMode addr)
 {
-    unsigned int operand = m_memory->readByte(m_reg, addr);
+    auto operand = m_memory->ReadByte(m_reg, addr);
+    auto result = m_reg.a & operand;
+    // TODO: Should this be the operand?
 
-    unsigned int result = (m_reg.a & 0xFF) & (operand & 0xFF);
+    m_reg.p.negative = operand >> 7;
+    // Check for half carry flag.
+    m_reg.p.overflow = operand >> 4;
+    m_reg.p.zero = result == 0;
 
-    m_flags.N = (bool)(operand & 0x80);
-
-    m_flags.V = (bool)(operand & 0x40);
-
-    m_flags.Z = result == 0;
-
-    m_reg.p = generateFlags();
     m_logger->writeInstruction(m_reg, "bit_test", operand, addr);
 }
 
-void nemus::core::CPU::compare(unsigned int &src, comp::AddressMode addr)
+void nemus::core::CPU::compare(uint8_t src, comp::AddressMode addr)
 {
-    unsigned int operand = m_memory->readByte(m_reg, addr);
+    auto operand = m_memory->ReadByte(m_reg, addr);
+    m_reg.p.carry = src >= operand;
 
-    m_flags.C = src >= operand;
+    uint8_t result = src - operand;
+    m_reg.p.zero = result == 0;
+    m_reg.p.negative = result >> 7;
 
-    m_flags.Z = src - operand == 0;
-    m_flags.N = (bool)(((unsigned char)(src) - (unsigned char)(operand)) & 0x80);
-
-    m_reg.p = generateFlags();
     m_logger->writeInstruction(m_reg, "compare", src, addr);
 }
 
 void nemus::core::CPU::decrement(comp::AddressMode addr)
 {
-    auto operand = (unsigned char)(m_memory->readByte(m_reg, addr));
+    auto operand = m_memory->ReadByte(m_reg, addr);
 
-    m_memory->writeByte(m_reg, (unsigned char)(operand - 1), addr);
+    m_memory->WriteByte(m_reg, operand - 1, addr);
+    m_reg.p.zero = (operand - 1) == 0;
+    m_reg.p.negative = (operand - 1) >> 7;
 
-    checkFlags((unsigned char)(operand - 1), comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
-
-    m_reg.p = generateFlags();
     m_logger->writeInstruction(m_reg, "decrement memory", operand, addr);
 }
 
-void nemus::core::CPU::decrement(unsigned int &src)
+void nemus::core::CPU::decrement(uint8_t &src)
 {
-    src = (unsigned char)((src)-1);
-    src &= 0xFF;
-
-    checkFlags(src, comp::FLAG_NEGATIVE | comp::FLAG_ZERO);
-
-    m_reg.p = generateFlags();
+    src--;
+    m_reg.p.zero = src == 0;
+    m_reg.p.negative = src >> 7;
     m_logger->writeInstruction(m_reg, "decrement reg", src, comp::ADDR_MODE_IMMEDIATE);
 }
 
 void nemus::core::CPU::xora(comp::AddressMode addr)
 {
-    unsigned int operand = m_memory->readByte(m_reg, addr);
-
-    m_reg.a = (operand & 0xFF) ^ (m_reg.a & 0xFF);
-
-    checkFlags(m_reg.a, comp::FLAG_NEGATIVE | comp::FLAG_ZERO);
-
-    m_reg.p = generateFlags();
+    auto operand = m_memory->ReadByte(m_reg, addr);
+    m_reg.a = operand ^ m_reg.a;
+    m_reg.p.zero = m_reg.a == 0;
+    m_reg.p.negative = m_reg.a >> 7;
     m_logger->writeInstruction(m_reg, "xor", operand, addr);
 }
 
 void nemus::core::CPU::increment(comp::AddressMode addr)
 {
-    unsigned char operand = m_memory->readByte(m_reg, addr);
-
-    m_memory->writeByte(m_reg, (unsigned char)(operand + 1), addr);
-
-    checkFlags((unsigned char)(operand + 1), comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
-
-    m_reg.p = generateFlags();
+    auto operand = m_memory->ReadByte(m_reg, addr) + 1;
+    m_memory->WriteByte(m_reg, operand, addr);
+    m_reg.p.zero = operand == 0;
+    m_reg.p.negative = operand >> 7;
     m_logger->writeInstruction(m_reg, "increment memory", 0, addr);
 }
 
-void nemus::core::CPU::increment(unsigned int &src)
+void nemus::core::CPU::increment(uint8_t &src)
 {
-    src = static_cast<unsigned char>(src) + 1;
-    src &= 0xFF;
-
-    checkFlags(src, comp::FLAG_NEGATIVE | comp::FLAG_ZERO);
-
-    m_reg.p = generateFlags();
+    src++;
+    m_reg.p.zero = src == 0;
+    m_reg.p.negative = src >> 7;
     m_logger->writeInstruction(m_reg, "increment reg", 0, comp::ADDR_MODE_IMMEDIATE);
 }
 
 void nemus::core::CPU::subJump()
 {
-    m_memory->push16(m_reg.pc + 2, m_reg.sp);
+    m_memory->Push16(m_reg.pc + 2, m_reg.sp);
+    m_reg.pc = m_memory->ReadWord(m_reg.pc + 1) - 3;
+    m_logger->writeInstruction(m_reg, "jump_sub", m_reg.pc + 3, comp::ADDR_MODE_ABSOLUTE);
+}
 
-    unsigned int address = m_memory->readWord(m_reg.pc + 1) - 3;
-
-    m_reg.p = generateFlags();
-    m_logger->writeInstruction(m_reg, "jump_sub", address + 3, comp::ADDR_MODE_ABSOLUTE);
-
-    m_reg.pc = address;
+void nemus::core::CPU::returnSub()
+{
+    m_reg.pc = m_memory->Pop16(m_reg.sp);
+    m_logger->writeInstruction(m_reg, "return_sub", m_reg.pc, comp::ADDR_MODE_IMMEDIATE);
 }
 
 void nemus::core::CPU::jump(comp::AddressMode addr)
 {
-    unsigned int address = 0;
-
-    if (addr == comp::ADDR_MODE_ABSOLUTE)
-    {
-        address = m_memory->readWord(m_reg.pc + 1);
-    }
-    else
-    {
-        unsigned int indirect_address = m_memory->readWord(m_reg.pc + 1);
-        address = m_memory->readWordBug(indirect_address);
-    }
-
-    m_reg.p = generateFlags();
-    m_logger->writeInstruction(m_reg, "jump", address, comp::ADDR_MODE_ABSOLUTE);
-
-    m_reg.pc = address - 3;
+    m_reg.pc = ((addr == comp::ADDR_MODE_ABSOLUTE)
+                    ? m_memory->ReadWord(m_reg.pc + 1)
+                    : m_memory->ReadWordBug(m_memory->ReadWord(m_reg.pc + 1))) -
+               3;
+    m_logger->writeInstruction(m_reg, "jump", m_reg.pc + 3, comp::ADDR_MODE_ABSOLUTE);
 }
 
 void nemus::core::CPU::shiftRight(comp::AddressMode addr)
 {
     if (addr == comp::ADDR_MODE_ACCUMULATOR)
     {
-        m_flags.C = (bool)(m_reg.a & 0x01);
-        m_reg.a = (m_reg.a & 0xFF) >> 1;
-        checkFlags(m_reg.a, comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
-
-        m_reg.p = generateFlags();
+        m_reg.p.carry = m_reg.a & 1;
+        m_reg.a >>= 1;
+        m_reg.p.zero = m_reg.a == 0;
+        m_reg.p.negative = m_reg.a >> 7;
         m_logger->writeInstruction(m_reg, "lsr", m_reg.a, addr);
     }
     else
     {
-        unsigned int operand = m_memory->readByte(m_reg, addr);
-
-        m_flags.C = (bool)(operand & 0x01);
-
-        operand = (operand & 0xFF) >> 1;
-        checkFlags(operand, comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
-
-        m_memory->writeByte(m_reg, operand, addr);
-
-        m_reg.p = generateFlags();
+        auto operand = m_memory->ReadByte(m_reg, addr);
+        m_reg.p.carry = operand & 1;
+        operand >>= 1;
+        m_reg.p.zero = operand == 0;
+        m_reg.p.negative = operand >> 7;
+        m_memory->WriteByte(m_reg, operand, addr);
         m_logger->writeInstruction(m_reg, "lsr", operand, addr);
     }
 }
 
-void nemus::core::CPU::load(unsigned int &dest, comp::AddressMode addr)
+void nemus::core::CPU::load(uint8_t &dest, comp::AddressMode addr)
 {
-    dest = m_memory->readByte(m_reg, addr);
-
-    checkFlags(dest, comp::FLAG_NEGATIVE | comp::FLAG_ZERO);
-
-    m_reg.p = generateFlags();
-
+    dest = m_memory->ReadByte(m_reg, addr);
+    m_reg.p.zero = dest == 0;
+    m_reg.p.negative = dest >> 7;
     m_logger->writeInstruction(m_reg, "load", dest, addr);
 }
 
 void nemus::core::CPU::ora(comp::AddressMode addr)
 {
-    unsigned int operand = m_memory->readByte(m_reg, addr);
-
-    m_reg.a = (operand & 0xFF) | (m_reg.a & 0xFF);
-
-    checkFlags(m_reg.a, comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
-
-    m_reg.p = generateFlags();
+    auto operand = m_memory->ReadByte(m_reg, addr);
+    m_reg.a |= operand;
+    m_reg.p.zero = m_reg.a == 0;
+    m_reg.p.negative = m_reg.a >> 7;
     m_logger->writeInstruction(m_reg, "ora", operand, addr);
 }
 
-void nemus::core::CPU::store(unsigned int &src, comp::AddressMode addr)
+void nemus::core::CPU::store(uint8_t src, comp::AddressMode addr)
 {
-    m_memory->writeByte(m_reg, src, addr);
-    m_reg.p = generateFlags();
+    m_memory->WriteByte(m_reg, src, addr);
     m_logger->writeInstruction(m_reg, "store", src, addr);
-}
-
-void nemus::core::CPU::returnSub()
-{
-    unsigned int address = m_memory->pop16(m_reg.sp);
-
-    m_reg.p = generateFlags();
-    m_logger->writeInstruction(m_reg, "return_sub", address, comp::ADDR_MODE_IMMEDIATE);
-
-    m_reg.pc = address;
 }
 
 void nemus::core::CPU::rotateRight(comp::AddressMode addr)
 {
-    bool carry = m_flags.C;
-
+    auto carry = m_reg.p.carry;
     if (addr == comp::ADDR_MODE_ACCUMULATOR)
     {
-        m_flags.C = (bool)(m_reg.a & 0x01);
-        m_reg.a = (m_reg.a & 0xFF) >> 1;
+        m_reg.p.carry = m_reg.a & 0x01;
+        m_reg.a >>= 1;
         m_reg.a += (carry * 0x80);
-
-        checkFlags(m_reg.a, comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
+        m_reg.p.zero = m_reg.a == 0;
+        m_reg.p.negative = m_reg.a >> 7;
     }
     else
     {
-        unsigned int operand = m_memory->readByte(m_reg, addr);
-
-        m_flags.C = (bool)(operand & 0x01);
-
-        operand = (operand & 0xFF) >> 1;
-
-        operand += (carry * 0x80);
-
-        m_memory->writeByte(m_reg, operand, addr);
-
-        checkFlags(operand, comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
+        auto operand = m_memory->ReadByte(m_reg, addr);
+        m_reg.p.carry = operand & 0x01;
+        operand >>= 1;
+        operand += carry * 0x80;
+        m_reg.p.zero = operand == 0;
+        m_reg.p.negative = operand >> 7;
+        m_memory->WriteByte(m_reg, operand, addr);
     }
-
-    m_reg.p = generateFlags();
     m_logger->writeInstruction(m_reg, "ror", 0, addr);
 }
 
 void nemus::core::CPU::rotateLeft(comp::AddressMode addr)
 {
-    bool carry = m_flags.C;
-
+    auto carry = m_reg.p.carry;
     if (addr == comp::ADDR_MODE_ACCUMULATOR)
     {
-        m_flags.C = (bool)(m_reg.a & 0x80);
-        m_reg.a = (m_reg.a << 1) & 0xFF;
+        m_reg.p.carry = m_reg.a >> 7;
+        m_reg.a = (m_reg.a << 1) + m_reg.p.carry;
         m_reg.a += carry;
-
-        checkFlags(m_reg.a, comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
+        m_reg.p.zero = m_reg.a == 0;
+        m_reg.p.negative = m_reg.a >> 7;
     }
     else
     {
-        unsigned int operand = m_memory->readByte(m_reg, addr);
-
-        m_flags.C = (bool)(operand & 0x80);
-
-        operand = (operand << 1) & 0xFF;
-
+        auto operand = m_memory->ReadByte(m_reg, addr);
+        m_reg.p.carry = operand >> 7;
+        operand <<= 1;
         operand += carry;
-
-        m_memory->writeByte(m_reg, operand, addr);
-
-        checkFlags(operand, comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
+        m_memory->WriteByte(m_reg, operand, addr);
+        m_reg.p.zero = operand == 0;
+        m_reg.p.negative = operand >> 7;
     }
-
-    m_reg.p = generateFlags();
     m_logger->writeInstruction(m_reg, "rol", 0, addr);
 }
 
 void nemus::core::CPU::subtract(comp::AddressMode addr)
 {
-    unsigned int operand = m_memory->readByte(m_reg, addr) ^ 0xFF;
+    uint16_t operand = m_memory->ReadByte(m_reg, addr) ^ 0xFF;
+    uint16_t result = m_reg.a + operand + m_reg.p.carry;
 
-    unsigned int result = m_reg.a + operand + m_flags.C;
+    m_reg.p.overflow = (~(m_reg.a ^ operand) & (m_reg.a ^ (result & 0xFF))) >> 7;
+    m_reg.p.carry = (result & 0xFF00) > 0 ? 1 : 0;
+    m_reg.p.zero = (result & 0xFF) == 0;
+    m_reg.p.negative = (result & 0xFF) >> 7;
 
-    m_flags.V = ~(m_reg.a ^ operand) & (m_reg.a ^ (result & 0xFF)) & 0x80;
+    m_reg.a = result;
 
-    m_flags.C = result & 0xFF00;
-
-    checkFlags(result & 0xFF, comp::FLAG_ZERO | comp::FLAG_NEGATIVE);
-
-    m_reg.a = result & 0xFF;
-
-    m_reg.p = generateFlags();
     m_logger->writeInstruction(m_reg, "sbc", operand, addr);
-}
-
-void nemus::core::CPU::setFlags(unsigned int flagbits)
-{
-    m_flags.C = (flagbits & 0x01) != 0;
-    m_flags.Z = (flagbits & 0x02) != 0;
-    m_flags.I = (flagbits & 0x04) != 0;
-    m_flags.D = (flagbits & 0x08) != 0;
-    m_flags.P = (flagbits & 0x10) != 0;
-    m_flags.V = (flagbits & 0x40) != 0;
-    m_flags.N = (flagbits & 0x80) != 0;
-}
-
-void nemus::core::CPU::setFlags(comp::Flag flag)
-{
-    switch (flag)
-    {
-    case comp::FLAG_CARRY:
-        m_flags.C = true;
-        break;
-    case comp::FLAG_ZERO:
-        m_flags.Z = true;
-        break;
-    case comp::FLAG_INTERRUPT:
-        m_flags.I = true;
-        break;
-    case comp::FLAG_PUSHED:
-        m_flags.P = true;
-        break;
-    case comp::FLAG_DECIMAL:
-        m_flags.D = true;
-        break;
-    case comp::FLAG_OVERFLOW:
-        m_flags.V = true;
-        break;
-    case comp::FLAG_NEGATIVE:
-        m_flags.N = true;
-        break;
-    }
-}
-
-void nemus::core::CPU::unsetFlags(comp::Flag flag)
-{
-    switch (flag)
-    {
-    case comp::FLAG_CARRY:
-        m_flags.C = false;
-        break;
-    case comp::FLAG_ZERO:
-        m_flags.Z = false;
-        break;
-    case comp::FLAG_INTERRUPT:
-        m_flags.I = false;
-        break;
-    case comp::FLAG_PUSHED:
-        m_flags.P = false;
-        break;
-    case comp::FLAG_DECIMAL:
-        m_flags.D = false;
-        break;
-    case comp::FLAG_OVERFLOW:
-        m_flags.V = false;
-        break;
-    case comp::FLAG_NEGATIVE:
-        m_flags.N = false;
-        break;
-    }
-}
-
-void nemus::core::CPU::checkFlags(unsigned int operand, int flagbits)
-{
-    if (flagbits & comp::FLAG_NEGATIVE)
-    {
-        if (operand > 0x7F)
-        {
-            setFlags(comp::FLAG_NEGATIVE);
-        }
-        else
-        {
-            unsetFlags(comp::FLAG_NEGATIVE);
-        }
-    }
-
-    if (flagbits & comp::FLAG_ZERO)
-    {
-        if (operand == 0)
-        {
-            setFlags(comp::FLAG_ZERO);
-        }
-        else
-        {
-            unsetFlags(comp::FLAG_ZERO);
-        }
-    }
-}
-
-unsigned int nemus::core::CPU::generateFlags()
-{
-    unsigned int result = 0;
-
-    if (m_flags.N)
-        result += 0x80;
-    if (m_flags.V)
-        result += 0x40;
-    result += 0x20;
-    if (m_flags.P)
-        result += 0x10;
-    if (m_flags.D)
-        result += 0x08;
-    if (m_flags.I)
-        result += 0x04;
-    if (m_flags.Z)
-        result += 0x02;
-    if (m_flags.C)
-        result += 0x01;
-
-    return result;
 }

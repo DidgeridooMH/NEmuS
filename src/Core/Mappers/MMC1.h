@@ -20,15 +20,28 @@ namespace nemus::core
         MMC1(const std::vector<char> &gameData);
         MMC1(const std::vector<char> &gameData, char *savStart, size_t savSize);
 
-        uint8_t readByte(uint32_t address) override;
-        void writeByte(uint8_t data, uint32_t address) override;
+        uint8_t ReadByte(uint16_t address) override;
+        uint8_t ReadBytePPU(uint16_t address) override;
 
-        uint8_t readBytePPU(uint32_t address) override;
-        void writeBytePPU(uint8_t data, uint32_t address) override;
-
-        MirrorMode getMirroring() override { return static_cast<MirrorMode>(m_control.mirroring); }
+        void WriteByte(uint8_t data, uint16_t address) override;
+        void WriteBytePPU(uint8_t data, uint16_t address) override;
 
     private:
+        // TODO: This is incorrect with the new enumeration.
+        MirrorMode GetMirroring() { return static_cast<MirrorMode>(m_control.mirroring); }
+        void AdjustShiftRegister(uint8_t data, uint16_t address);
+
+        void WriteControl();
+        void WriteCHRBank0();
+        void WriteCHRBank1();
+        void WritePRGBank();
+
+        void UpdateBanks();
+
+        size_t GetMirroringTable(uint16_t address);
+        void WriteNametable(uint8_t data, uint16_t address);
+        uint8_t ReadNametable(uint16_t address);
+
         static constexpr size_t NameTableSize = 0x400;
         static constexpr size_t PPUMemorySize = 0x8000;
         static constexpr size_t PPUCharRomSize = 0x2000;
@@ -57,19 +70,6 @@ namespace nemus::core
 
         uint8_t m_prgBank;
         uint8_t m_chrBank;
-
-        void adjustShiftRegister(uint8_t data, uint32_t address);
-
-        void writeControl();
-        void writeCHRBank0();
-        void writeCHRBank1();
-        void writePRGBank();
-
-        void updateBanks();
-
-        uint32_t getMirroringTable(uint32_t address);
-        void writeNametable(uint8_t data, uint32_t address);
-        unsigned char readNametable(uint32_t address);
     };
 
 }

@@ -1,17 +1,37 @@
-#ifndef NEMUS_COMPONENTHELPER_H
-#define NEMUS_COMPONENTHELPER_H
+#pragma once
 
-namespace nemus::comp {
-    struct Registers {
-        unsigned int x;
-        unsigned int y;
-        unsigned int a;
-        unsigned int pc;
-        unsigned int sp;
-        unsigned int p;
+#include <cstdint>
+
+namespace nemus::comp
+{
+    struct StatusFlag
+    {
+        uint8_t carry : 1;
+        uint8_t zero : 1;
+        uint8_t interruptDisable : 1;
+        uint8_t decimal : 1;
+        uint8_t pushed : 2;
+        uint8_t overflow : 1;
+        uint8_t negative : 1;
     };
 
-    enum AddressMode {
+    struct Registers
+    {
+        uint8_t x;
+        uint8_t y;
+        uint8_t a;
+        uint16_t pc;
+        uint8_t sp;
+        union
+        {
+            StatusFlag p;
+            uint8_t pFull;
+        };
+    };
+
+    // TODO: Make these enum class
+    enum AddressMode
+    {
         ADDR_MODE_IMMEDIATE,
         ADDR_MODE_ZERO_PAGE,
         ADDR_MODE_ZERO_PAGE_X,
@@ -26,22 +46,36 @@ namespace nemus::comp {
         ADDR_MODE_IMPLIED,
     };
 
-    enum Flag {
-        FLAG_CARRY = 0x1,
-        FLAG_ZERO = 0x2,
-        FLAG_INTERRUPT = 0x4,
-        FLAG_DECIMAL = 0x8,
-        FLAG_PUSHED = 0x10,
-        FLAG_OVERFLOW = 0x40,
-        FLAG_NEGATIVE = 0x80
-    };
+    constexpr const char *AddressModeToString(AddressMode mode)
+    {
+        switch (mode)
+        {
+        case comp::ADDR_MODE_IMMEDIATE:
+            return "IMMEDIATE MODE";
+        case comp::ADDR_MODE_ZERO_PAGE:
+            return "ZEROPAGE MODE";
+        case comp::ADDR_MODE_ZERO_PAGE_X:
+            return "ZEROPAGE INDEXED X MODE";
+        case comp::ADDR_MODE_ABSOLUTE:
+            return "ABSOLUTE MODE";
+        case comp::ADDR_MODE_ABSOLUTE_X:
+            return "ABSOLUTE MODE X";
+        case comp::ADDR_MODE_ABSOLUTE_Y:
+            return "ABSOLUTE MODE Y";
+        case comp::ADDR_MODE_INDIRECT_X:
+            return "INDIRECT X";
+        case comp::ADDR_MODE_INDIRECT_Y:
+            return "INDIRECT Y";
+        default:
+            return "ADDR UNKNOWN";
+        }
+    }
 
-    enum Interrupt {
+    enum Interrupt
+    {
         INT_NONE,
         INT_NMI,
         INT_RESET,
         INT_IRQ
     };
 }
-
-#endif

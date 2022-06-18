@@ -8,35 +8,26 @@
 
 namespace nemus::core
 {
-
-    enum class NameTableId
-    {
-        A,
-        B
-    };
-
     class NROM : public Mapper
     {
     public:
         NROM(const std::vector<char> &romStart);
 
-        unsigned char readByte(unsigned int address) override;
+        uint8_t ReadByte(uint16_t address) override;
+        uint8_t ReadBytePPU(uint16_t address) override;
 
-        unsigned char readBytePPU(unsigned int address) override;
+        void WriteByte(uint8_t data, uint16_t address) override;
+        void WriteBytePPU(uint8_t data, uint16_t address) override;
 
-        void writeByte(unsigned char data, unsigned int address) override;
-
-        void writeBytePPU(unsigned char data, unsigned int address) override;
-
-        MirrorMode getMirroring() override { return m_mirroring; }
+        size_t GetMirroringTable(uint16_t address) override;
 
     private:
-        NameTableId getMirroringTable(unsigned address);
+        static constexpr size_t CPURamSize = 0x2000UL;
+        static constexpr size_t CPURomBankSize = 0x4000UL;
+        static constexpr size_t CharacterRomSize = 0x2000;
 
         std::vector<uint8_t> m_fixedCPUMemory;
         std::vector<uint8_t> m_fixedPPUMemory;
-
-        std::array<std::vector<uint8_t>, 4> m_nameTables;
 
         MirrorMode m_mirroring;
     };

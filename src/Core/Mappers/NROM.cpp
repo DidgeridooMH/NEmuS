@@ -1,75 +1,61 @@
 #include <cstring>
+#include <cassert>
+
 #include "NROM.h"
 
 namespace nemus::core
 {
     NROM::NROM(const std::vector<char> &romStart)
-        : m_fixedCPUMemory(0xA000),
-          m_fixedPPUMemory(0x8000),
-          m_nameTables({std::vector<uint8_t>(0x400),
-                        std::vector<uint8_t>(0x400)})
+        : m_fixedCPUMemory(CPURomBankSize * 2 + CPURamSize),
+          m_fixedPPUMemory(CharacterRomSize)
     {
-        // TODO: Check size of rom file.
-        memcpy(&m_fixedCPUMemory[0x2000], &romStart[INESRomHeaderSize], 0x8000);
-        memcpy(m_fixedPPUMemory.data(), &romStart[0x8000 + INESRomHeaderSize], 0x2000);
+        memcpy(&m_fixedCPUMemory[CPURamSize], &romStart[INESRomHeaderSize], CPURomBankSize * 2);
+        memcpy(m_fixedPPUMemory.data(), &romStart[CPURomBankSize * 2 + INESRomHeaderSize], CPURamSize);
 
-        m_mirroring = static_cast<MirrorMode>(romStart[6] & 1);
+        m_mirroring = (romStart[6] & 1) > 0 ? MirrorMode::Vertical : MirrorMode::Horizontal;
     }
 
-    NameTableId NROM::getMirroringTable(unsigned int address)
+    size_t NROM::GetMirroringTable(uint16_t address)
     {
+        assert(address >= 0x2000 && address < 0x3000);
         switch (m_mirroring)
         {
         case MirrorMode::Horizontal:
-            return (address >= 0x2000 && address < 0x2800) ? NameTableId::A : NameTableId::B;
+            return (address >= 0x2000 && address < 0x2800) ? 0 : 1;
         case MirrorMode::Vertical:
-            return ((address >= 0x2000 && address < 0x2400) || (address >= 0x2800 && address < 0x2C00)) ? NameTableId::A : NameTableId::B;
+            return ((address >= 0x2000 && address < 0x2400) || (address >= 0x2800 && address < 0x2C00)) ? 0 : 1;
         default:
             break;
         }
 
-        return NameTableId::A;
+        return 0;
     }
 
-    unsigned char NROM::readByte(unsigned int address)
+    uint8_t NROM::ReadByte(uint16_t address)
     {
+        assert(address >= 0x6000);
+        if (address < 0x8000)
+        {
+            return m_fixedCPUMemory[(address - 0x6000) % 0x1000];
+        }
         return m_fixedCPUMemory[address - 0x6000];
     }
 
-    unsigned char NROM::readBytePPU(unsigned address)
+    uint8_t NROM::ReadBytePPU(uint16_t address)
     {
-        if (address >= 0x2000 && address < 0x3000)
-        {
-            auto nametable = getMirroringTable(address);
-            address %= 0x400;
-            return m_nameTables[static_cast<int>(nametable)][address];
-        }
-
+        assert(address < 0x2000);
         return m_fixedPPUMemory[address];
     }
 
-    void NROM::writeByte(unsigned char data, unsigned address)
+    void NROM::WriteByte(uint8_t data, uint16_t address)
     {
-        if (address < 0x8000)
-        {
-            m_fixedCPUMemory[address - 0x6000] = data;
-        }
+        assert(address < 0x8000);
+        m_fixedCPUMemory[(address - 0x6000) % 0x1000] = data;
     }
 
-    void NROM::writeBytePPU(unsigned char data, unsigned address)
+    void NROM::WriteBytePPU(uint8_t data, uint16_t address)
     {
-        if (address < 0x2000)
-        {
-            m_fixedPPUMemory[address] = data;
-        }
-        else if (address < 0x3F00)
-        {
-            m_nameTables[static_cast<int>(getMirroringTable(address))][address % 0x400] = data;
-        }
-        else if (address < 0x4000)
-        {
-            address -= 0x3F00;
-            m_fixedPPUMemory[0x3F00 + (address % 32)] = data;
-        }
+        assert(address < 0x2000);
+        m_fixedPPUMemory[address] = data;
     }
 }

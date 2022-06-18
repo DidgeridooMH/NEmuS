@@ -30,8 +30,8 @@ namespace nemus::ui
 
           auto address = fineY | col << 4 | row << 8 | m_tableId << 12;
 
-          auto plane0 = m_memory->readPPUByte(address);
-          auto plane1 = m_memory->readPPUByte(address | 0x8);
+          auto plane0 = m_memory->ReadPPUByte(address);
+          auto plane1 = m_memory->ReadPPUByte(address | 0x8);
           auto bit0 = (plane0 >> (7 - fineX)) & 1;
           auto bit1 = (plane1 >> (7 - fineX)) & 1;
           switch (bit0 | (bit1 << 1))
