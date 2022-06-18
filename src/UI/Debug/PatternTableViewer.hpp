@@ -17,7 +17,7 @@ namespace nemus::ui
 
   public:
     // TODO: because memory is reinitialized when a game is reset, this will leave a corrupted pointer here.
-    PatternTableViewer(core::Memory *memory, QWidget *parent);
+    PatternTableViewer(core::Memory *memory, QWidget *parent = nullptr);
 
   private:
     // These are all automatically free'd when the parent window is destroyed.

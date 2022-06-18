@@ -24,6 +24,7 @@ src = [
   'src/UI/Screen.cpp',
   'src/UI/Debug/PatternTableViewer.cpp',
   'src/UI/Debug/PatternTableImage.cpp',
+  'src/UI/Debug/Debugger.cpp',
   'src/Utils/Filesystem.cpp'
 ]
 
@@ -32,7 +33,8 @@ src += qt.compile_moc(
     'src/UI/Settings.h',
     'src/UI/Screen.h',
     'src/UI/Debug/PatternTableViewer.hpp',
-    'src/UI/Debug/PatternTableImage.hpp'])
+    'src/UI/Debug/PatternTableImage.hpp', 
+    'src/UI/Debug/Debugger.hpp'])
 
 incdir = ['./src']
 deps = [qt6_dep, quazip_dep, fmt_dep]

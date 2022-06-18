@@ -50,22 +50,28 @@ namespace nemus::comp
     {
         switch (mode)
         {
-        case comp::ADDR_MODE_IMMEDIATE:
+        case ADDR_MODE_IMMEDIATE:
             return "IMMEDIATE MODE";
-        case comp::ADDR_MODE_ZERO_PAGE:
+        case ADDR_MODE_ZERO_PAGE:
             return "ZEROPAGE MODE";
-        case comp::ADDR_MODE_ZERO_PAGE_X:
+        case ADDR_MODE_ZERO_PAGE_X:
             return "ZEROPAGE INDEXED X MODE";
-        case comp::ADDR_MODE_ABSOLUTE:
+        case ADDR_MODE_ABSOLUTE:
             return "ABSOLUTE MODE";
-        case comp::ADDR_MODE_ABSOLUTE_X:
+        case ADDR_MODE_ABSOLUTE_X:
             return "ABSOLUTE MODE X";
-        case comp::ADDR_MODE_ABSOLUTE_Y:
+        case ADDR_MODE_ABSOLUTE_Y:
             return "ABSOLUTE MODE Y";
-        case comp::ADDR_MODE_INDIRECT_X:
+        case ADDR_MODE_INDIRECT:
+            return "INDIRECT";
+        case ADDR_MODE_INDIRECT_X:
             return "INDIRECT X";
-        case comp::ADDR_MODE_INDIRECT_Y:
+        case ADDR_MODE_INDIRECT_Y:
             return "INDIRECT Y";
+        case ADDR_MODE_ACCUMULATOR:
+            return "ACCUMULATOR";
+        case ADDR_MODE_IMPLIED:
+            return "IMPLIED";
         default:
             return "ADDR UNKNOWN";
         }

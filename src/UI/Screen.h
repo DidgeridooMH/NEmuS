@@ -4,6 +4,7 @@
 #include <QMainWindow>
 
 #include <UI/Debug/PatternTableViewer.hpp>
+#include <UI/Debug/Debugger.hpp>
 
 #include "SettingsState.h"
 #include "../Core/PPU.h"
@@ -39,6 +40,7 @@ namespace nemus::ui
         std::unique_ptr<QAction> m_pauseAction;
         std::unique_ptr<QAction> m_patternTableAction;
         std::unique_ptr<QAction> m_ppuDumpAction;
+        std::unique_ptr<QAction> m_showDebuggerAction;
 
         SettingsState *m_state;
 
@@ -46,6 +48,7 @@ namespace nemus::ui
         std::chrono::system_clock::time_point m_oldTime;
 
         std::unique_ptr<PatternTableViewer> m_patternTableViewer;
+        std::unique_ptr<Debugger> m_debuggerWindow;
 
         void applySettings();
 
@@ -76,6 +79,7 @@ namespace nemus::ui
         void SetPauseState();
         void CreatePatternTableViewer();
         void DumpPPUMemory();
+        void ShowDebugger();
     };
 }
 

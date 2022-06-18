@@ -68,7 +68,7 @@ void nemus::NES::loadGame(const std::vector<char> &gameData)
     reset();
 
     m_logger = new debug::Logger();
-    // m_logger->enable();
+    m_logger->enable();
 
     m_memory = new core::Memory(m_logger, m_ppu, m_input, gameData);
 

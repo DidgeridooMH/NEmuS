@@ -24,10 +24,12 @@ namespace nemus::core
     private:
         static constexpr size_t CPURamSize = 0x2000UL;
         static constexpr size_t CPURomBankSize = 0x4000UL;
-        static constexpr size_t CharacterRomSize = 0x2000;
+        static constexpr size_t CharacterRomSize = 0x2000UL;
 
         std::vector<uint8_t> m_fixedCPUMemory;
         std::vector<uint8_t> m_fixedPPUMemory;
+
+        size_t m_numberOfBanks;
 
         MirrorMode m_mirroring;
     };

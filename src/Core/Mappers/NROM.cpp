@@ -7,12 +7,13 @@ namespace nemus::core
 {
     NROM::NROM(const std::vector<char> &romStart)
         : m_fixedCPUMemory(CPURomBankSize * 2 + CPURamSize),
-          m_fixedPPUMemory(CharacterRomSize)
+          m_fixedPPUMemory(CharacterRomSize),
+          m_numberOfBanks(romStart[4]),
+          m_mirroring((romStart[6] & 1) > 0 ? MirrorMode::Vertical : MirrorMode::Horizontal)
     {
-        memcpy(&m_fixedCPUMemory[CPURamSize], &romStart[INESRomHeaderSize], CPURomBankSize * 2);
-        memcpy(m_fixedPPUMemory.data(), &romStart[CPURomBankSize * 2 + INESRomHeaderSize], CPURamSize);
 
-        m_mirroring = (romStart[6] & 1) > 0 ? MirrorMode::Vertical : MirrorMode::Horizontal;
+        memcpy(&m_fixedCPUMemory[CPURamSize], &romStart[INESRomHeaderSize], CPURomBankSize * m_numberOfBanks);
+        memcpy(m_fixedPPUMemory.data(), &romStart[CPURomBankSize * 2 + INESRomHeaderSize], CharacterRomSize);
     }
 
     size_t NROM::GetMirroringTable(uint16_t address)
@@ -38,6 +39,12 @@ namespace nemus::core
         {
             return m_fixedCPUMemory[(address - 0x6000) % 0x1000];
         }
+
+        if (m_numberOfBanks == 1 && address >= (0x8000 + CPURomBankSize))
+        {
+            return m_fixedCPUMemory[(address - CPURomBankSize - 0x6000)];
+        }
+
         return m_fixedCPUMemory[address - 0x6000];
     }
 
